@@ -1,0 +1,1865 @@
+openapi: 3.0.3
+info:
+  title: Panda Smart API
+  version: 1.0.0
+  description: Backend for the Panda Smart crop-lifecycle demo (architecture.md).
+paths:
+  /api/schema/:
+    get:
+      operationId: api_schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - api
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/advice/:
+    get:
+      operationId: advice_retrieve
+      parameters:
+      - in: query
+        name: crop
+        schema:
+          type: string
+          minLength: 1
+        required: true
+      - in: query
+        name: ward
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - advice
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdviceResponse'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/crops/:
+    get:
+      operationId: crops_list
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - crops
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCropList'
+          description: ''
+  /api/v1/dashboard/wards/:
+    get:
+      operationId: dashboard_wards_list
+      tags:
+      - dashboard
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DashboardWardSummary'
+          description: ''
+  /api/v1/dashboard/wards/{ward_id}/:
+    get:
+      operationId: dashboard_ward_detail
+      parameters:
+      - in: path
+        name: ward_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dashboard
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WardDashboard'
+          description: ''
+  /api/v1/farmers/:
+    get:
+      operationId: farmers_list
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - farmers
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFarmerList'
+          description: ''
+    post:
+      operationId: farmers_create
+      tags:
+      - farmers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FarmerCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FarmerCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FarmerCreateRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FarmerCreate'
+          description: ''
+  /api/v1/farmers/{id}/:
+    get:
+      operationId: farmers_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - farmers
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Farmer'
+          description: ''
+  /api/v1/farmers/{id}/plots/:
+    get:
+      operationId: farmers_plots_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - farmers
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPlotList'
+          description: ''
+    post:
+      operationId: farmers_plots_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - farmers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlotCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlotCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlotCreateRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlotCreate'
+          description: ''
+  /api/v1/lots/:
+    get:
+      operationId: lots_list
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - lots
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLotList'
+          description: ''
+    post:
+      operationId: lots_create
+      tags:
+      - lots
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LotRegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LotRegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LotRegisterRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LotRegister'
+          description: ''
+  /api/v1/lots/{lot_id}/:
+    get:
+      operationId: lots_retrieve
+      parameters:
+      - in: path
+        name: lot_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - lots
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lot'
+          description: ''
+  /api/v1/lots/{lot_id}/events/:
+    get:
+      operationId: lots_events_list
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: path
+        name: lot_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - lots
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLotEventList'
+          description: ''
+    post:
+      operationId: lots_events_create
+      parameters:
+      - in: path
+        name: lot_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - lots
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EventCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EventCreateRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventCreate'
+          description: ''
+  /api/v1/lots/{lot_id}/verify-chain/:
+    get:
+      operationId: lots_verify_chain_retrieve
+      parameters:
+      - in: path
+        name: lot_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - lots
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyChainResponse'
+          description: ''
+  /api/v1/planting-intents/:
+    get:
+      operationId: planting_intents_list
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - planting-intents
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedIntentList'
+          description: ''
+    post:
+      operationId: planting_intents_create
+      tags:
+      - planting-intents
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/IntentCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/IntentCreateRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntentCreate'
+          description: ''
+  /api/v1/ussd/:
+    post:
+      operationId: ussd_create
+      tags:
+      - ussd
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UssdRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UssdRequestRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: Plain text starting with CON or END.
+  /api/v1/verify/{token}/:
+    get:
+      operationId: verify_retrieve
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - verify
+      security:
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyData'
+          description: ''
+  /api/v1/verify/{token}/confirm/:
+    post:
+      operationId: verify_confirm_create
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - verify
+      security:
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyActionResponse'
+          description: ''
+  /api/v1/verify/{token}/dispute/:
+    post:
+      operationId: verify_dispute_create
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - verify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DisputeRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DisputeRequestRequest'
+        required: true
+      security:
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyActionResponse'
+          description: ''
+  /api/v1/wards/:
+    get:
+      operationId: wards_list
+      parameters:
+      - name: limit
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: offset
+        required: false
+        in: query
+        description: The initial index from which to return the results.
+        schema:
+          type: integer
+      tags:
+      - wards
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedWardList'
+          description: ''
+  /api/v1/wards/{ward_id}/slots/:
+    get:
+      operationId: wards_slots_list
+      parameters:
+      - in: query
+        name: crop
+        schema:
+          type: string
+          minLength: 1
+        required: true
+      - in: query
+        name: season
+        schema:
+          type: string
+          minLength: 1
+      - in: path
+        name: ward_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - wards
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
+          description: ''
+  /health:
+    get:
+      operationId: health_retrieve
+      description: Public liveness check for uptime monitors.
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: ''
+components:
+  schemas:
+    AdviceResponse:
+      type: object
+      properties:
+        ward:
+          $ref: '#/components/schemas/Ward'
+        crop:
+          type: string
+        recommended_window:
+          $ref: '#/components/schemas/SlotRef'
+        confidence:
+          type: number
+          format: double
+        rationale:
+          type: string
+        rule_set_version:
+          type: string
+        alternatives:
+          type: array
+          items:
+            type: string
+      required:
+      - alternatives
+      - confidence
+      - crop
+      - rationale
+      - recommended_window
+      - rule_set_version
+      - ward
+    AgentRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    BlankEnum:
+      enum:
+      - ''
+    Crop:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 30
+        name_en:
+          type: string
+          maxLength: 100
+        name_sw:
+          type: string
+          maxLength: 100
+        storable:
+          type: boolean
+      required:
+      - code
+      - id
+      - name_en
+      - name_sw
+    DashboardCrop:
+      type: object
+      properties:
+        crop:
+          type: string
+        intended_acres:
+          type: number
+          format: double
+          nullable: true
+        expected_demand_acres:
+          type: number
+          format: double
+          nullable: true
+        oversubscription_pct:
+          type: number
+          format: double
+          nullable: true
+        stored_stock_kg:
+          type: number
+          format: double
+          nullable: true
+        avg_loss_pct:
+          type: number
+          format: double
+          nullable: true
+        latest_price_per_kg_kes:
+          type: number
+          format: double
+          nullable: true
+        sell_flag:
+          type: string
+          nullable: true
+        sell_flag_reason:
+          type: string
+        suppressed:
+          type: boolean
+      required:
+      - avg_loss_pct
+      - crop
+      - expected_demand_acres
+      - intended_acres
+      - latest_price_per_kg_kes
+      - oversubscription_pct
+      - sell_flag
+      - sell_flag_reason
+      - stored_stock_kg
+      - suppressed
+    DashboardWardSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        county:
+          type: string
+        region:
+          type: string
+        crop_count:
+          type: integer
+        total_intended_acres:
+          type: number
+          format: double
+        stored_stock_kg:
+          type: number
+          format: double
+        generated_at:
+          type: string
+          format: date-time
+      required:
+      - county
+      - crop_count
+      - generated_at
+      - id
+      - name
+      - region
+      - stored_stock_kg
+      - total_intended_acres
+    DisputeRequestRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+      required:
+      - reason
+    EventCreate:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/TypeEnum'
+        payload: {}
+      required:
+      - payload
+      - type
+    EventCreateRequest:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/TypeEnum'
+        payload: {}
+      required:
+      - payload
+      - type
+    Farmer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        ward:
+          allOf:
+          - $ref: '#/components/schemas/Ward'
+          readOnly: true
+        tenant_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        consent_given:
+          type: boolean
+        consent_at:
+          type: string
+          format: date-time
+          nullable: true
+        plots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plot'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - phone
+      - plots
+      - tenant_id
+      - ward
+    FarmerCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        ward:
+          type: string
+          format: uuid
+        consent_given:
+          type: boolean
+        consent_at:
+          type: string
+          format: date-time
+          nullable: true
+        create_login:
+          type: boolean
+          default: false
+      required:
+      - consent_given
+      - name
+      - phone
+      - ward
+    FarmerCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        ward:
+          type: string
+          format: uuid
+        consent_given:
+          type: boolean
+        consent_at:
+          type: string
+          format: date-time
+          nullable: true
+        create_login:
+          type: boolean
+          default: false
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - consent_given
+      - name
+      - phone
+      - ward
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    Intent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        farmer_id:
+          type: string
+          format: uuid
+          readOnly: true
+        plot_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        crop:
+          type: string
+          readOnly: true
+        acres:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        season:
+          type: string
+          maxLength: 50
+        slot:
+          allOf:
+          - $ref: '#/components/schemas/SlotRef'
+          nullable: true
+          readOnly: true
+        oversubscribed:
+          type: boolean
+        warning:
+          type: string
+        alternatives: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - acres
+      - created_at
+      - crop
+      - farmer_id
+      - id
+      - plot_id
+      - season
+      - slot
+    IntentCreate:
+      type: object
+      properties:
+        farmer_id:
+          type: string
+          format: uuid
+        plot_id:
+          type: string
+          format: uuid
+          nullable: true
+        crop:
+          type: string
+        acres:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        season:
+          type: string
+      required:
+      - acres
+      - crop
+      - farmer_id
+    IntentCreateRequest:
+      type: object
+      properties:
+        farmer_id:
+          type: string
+          format: uuid
+        plot_id:
+          type: string
+          format: uuid
+          nullable: true
+        crop:
+          type: string
+          minLength: 1
+        acres:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        season:
+          type: string
+      required:
+      - acres
+      - crop
+      - farmer_id
+    LoginRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - phone
+    Lot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        crop:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        initial_weight_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        registered_at:
+          type: string
+          format: date-time
+        location_label:
+          type: string
+          maxLength: 200
+        farmer_id:
+          type: string
+          format: uuid
+          readOnly: true
+        ward_id:
+          type: string
+          format: uuid
+          readOnly: true
+        agent:
+          allOf:
+          - $ref: '#/components/schemas/AgentRef'
+          readOnly: true
+        verification_url:
+          type: string
+          nullable: true
+          readOnly: true
+        summary:
+          allOf:
+          - $ref: '#/components/schemas/LotSummary'
+          readOnly: true
+      required:
+      - agent
+      - crop
+      - farmer_id
+      - id
+      - initial_weight_kg
+      - location_label
+      - summary
+      - verification_url
+      - ward_id
+    LotEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        type:
+          $ref: '#/components/schemas/TypeEnum'
+        payload: {}
+        recorded_by:
+          allOf:
+          - $ref: '#/components/schemas/AgentRef'
+          nullable: true
+          readOnly: true
+        recorded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        hash:
+          type: string
+          readOnly: true
+        sequence:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+      required:
+      - hash
+      - id
+      - recorded_at
+      - recorded_by
+      - sequence
+      - type
+    LotRegister:
+      type: object
+      properties:
+        farmer_id:
+          type: string
+          format: uuid
+        crop:
+          type: string
+        weight_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        bag_count:
+          type: integer
+          minimum: 0
+        storage_method:
+          type: string
+        location_label:
+          type: string
+        moisture_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - bag_count
+      - crop
+      - farmer_id
+      - location_label
+      - storage_method
+      - weight_kg
+    LotRegisterRequest:
+      type: object
+      properties:
+        farmer_id:
+          type: string
+          format: uuid
+        crop:
+          type: string
+          minLength: 1
+        weight_kg:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        bag_count:
+          type: integer
+          minimum: 0
+        storage_method:
+          type: string
+          minLength: 1
+        location_label:
+          type: string
+          minLength: 1
+        moisture_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - bag_count
+      - crop
+      - farmer_id
+      - location_label
+      - storage_method
+      - weight_kg
+    LotSummary:
+      type: object
+      properties:
+        latest_weight_kg:
+          type: number
+          format: double
+        loss_kg:
+          type: number
+          format: double
+        loss_pct:
+          type: number
+          format: double
+        latest_moisture_pct:
+          type: number
+          format: double
+          nullable: true
+      required:
+      - latest_moisture_pct
+      - latest_weight_kg
+      - loss_kg
+      - loss_pct
+    PaginatedCropList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Crop'
+    PaginatedFarmerList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Farmer'
+    PaginatedIntentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Intent'
+    PaginatedLotEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LotEvent'
+    PaginatedLotList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Lot'
+    PaginatedPlotList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plot'
+    PaginatedWardList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=400&limit=100
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?offset=200&limit=100
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ward'
+    Plot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        farmer_id:
+          type: string
+          format: uuid
+          readOnly: true
+        ward_id:
+          type: string
+          format: uuid
+          readOnly: true
+        acres:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        lat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        lng:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - acres
+      - created_at
+      - farmer_id
+      - id
+      - ward_id
+    PlotCreate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        ward:
+          type: string
+          format: uuid
+        acres:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        lat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        lng:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+      required:
+      - acres
+      - id
+      - ward
+    PlotCreateRequest:
+      type: object
+      properties:
+        ward:
+          type: string
+          format: uuid
+        acres:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        lat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        lng:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+      required:
+      - acres
+      - ward
+    RegionEnum:
+      enum:
+      - south_eastern
+      - metropolitan
+      - other
+      type: string
+      description: |-
+        * `south_eastern` - South Eastern
+        * `metropolitan` - Metropolitan
+        * `other` - Other
+    RoleEnum:
+      enum:
+      - farmer
+      - agent
+      - coop_admin
+      - admin
+      type: string
+      description: |-
+        * `farmer` - Farmer
+        * `agent` - Storage agent
+        * `coop_admin` - Cooperative admin
+        * `admin` - Admin
+    Slot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        window_start:
+          type: string
+        window_end:
+          type: string
+        capacity_acres:
+          type: number
+          format: double
+        booked_acres:
+          type: number
+          format: double
+        remaining_acres:
+          type: number
+          format: double
+      required:
+      - booked_acres
+      - capacity_acres
+      - id
+      - remaining_acres
+      - window_end
+      - window_start
+    SlotRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        window_start:
+          type: string
+        window_end:
+          type: string
+      required:
+      - id
+      - window_end
+      - window_start
+    StatusEnum:
+      enum:
+      - stored
+      - sold
+      - disputed
+      - closed
+      type: string
+      description: |-
+        * `stored` - Stored
+        * `sold` - Sold
+        * `disputed` - Disputed
+        * `closed` - Closed
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - token
+      - user
+    TypeEnum:
+      enum:
+      - REGISTERED
+      - MOISTURE_READING
+      - WEIGHT_READING
+      - CHECKUP
+      - LOSS_RECORDED
+      - VERIFIED
+      - DISPUTED
+      - CORRECTION
+      type: string
+      description: |-
+        * `REGISTERED` - Registered
+        * `MOISTURE_READING` - Moisture reading
+        * `WEIGHT_READING` - Weight reading
+        * `CHECKUP` - Check-up
+        * `LOSS_RECORDED` - Loss recorded
+        * `VERIFIED` - Verified by farmer
+        * `DISPUTED` - Disputed by farmer
+        * `CORRECTION` - Correction
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        phone:
+          type: string
+          maxLength: 20
+        name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        tenant_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+      required:
+      - id
+      - name
+      - phone
+      - tenant_id
+    UssdRequestRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          minLength: 1
+        phoneNumber:
+          type: string
+          minLength: 1
+        text:
+          type: string
+          default: ''
+      required:
+      - phoneNumber
+      - sessionId
+    VerifyActionResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        status:
+          type: string
+      required:
+      - ok
+      - status
+    VerifyChainResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+      required:
+      - valid
+    VerifyData:
+      type: object
+      properties:
+        lot:
+          type: object
+          additionalProperties: {}
+        farmer_name:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifyEvent'
+        summary:
+          $ref: '#/components/schemas/LotSummary'
+        already_responded:
+          type: boolean
+      required:
+      - already_responded
+      - events
+      - farmer_name
+      - lot
+      - summary
+    VerifyEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        recorded_at:
+          type: string
+          format: date-time
+        payload: {}
+      required:
+      - id
+      - payload
+      - recorded_at
+      - type
+    Ward:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        county:
+          type: string
+          maxLength: 100
+        region:
+          oneOf:
+          - $ref: '#/components/schemas/RegionEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        lat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        lng:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+      required:
+      - county
+      - id
+      - name
+    WardDashboard:
+      type: object
+      properties:
+        ward:
+          $ref: '#/components/schemas/Ward'
+        generated_at:
+          type: string
+          format: date-time
+        crops:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardCrop'
+      required:
+      - crops
+      - generated_at
+      - ward
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"

@@ -1,0 +1,41 @@
+{
+  "version": "v3",
+  "rainfall_onset_threshold_mm": 20.0,
+  "lookback_days": 30,
+  "default_duration_days": 10,
+  "fallback_offset_days": 12,
+  "base_confidence": 0.65,
+  "crop_windows": {
+    "maize": {
+      "duration_days": 14,
+      "confidence": 0.75,
+      "rationale": "Onset of rains expected in the last week of November."
+    },
+    "green_gram": {
+      "duration_days": 10,
+      "confidence": 0.7,
+      "rationale": "Short-cycle legume suited to the late short-rains onset."
+    },
+    "cowpea": {
+      "duration_days": 12,
+      "confidence": 0.72,
+      "rationale": "Drought-tolerant legume with a forgiving planting window."
+    },
+    "watermelon": {
+      "duration_days": 8,
+      "confidence": 0.6,
+      "rationale": "Plant in a staggered window to avoid a market glut."
+    }
+  },
+  "region_adjustments": {
+    "south_eastern": {"confidence_delta": -0.05, "window_shift_days": 0},
+    "metropolitan": {"confidence_delta": 0.0, "window_shift_days": 2},
+    "other": {"confidence_delta": 0.0, "window_shift_days": 0}
+  },
+  "alternatives": {
+    "maize": ["cowpea", "green_gram"],
+    "green_gram": ["cowpea"],
+    "cowpea": ["green_gram"],
+    "watermelon": ["cowpea", "green_gram"]
+  }
+}
