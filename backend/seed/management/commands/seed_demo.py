@@ -29,10 +29,12 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 WARDS = [
     ("Kitui Central", "Kitui", Ward.Regions.SOUTH_EASTERN, "-1.3678", "38.0103"),
-    ("Makueni Town", "Makueni", Ward.Regions.SOUTH_EASTERN, "-1.8026", "37.2740"),
+    # Wote, the Makueni county town (checked 18 Nov 2026; the earlier value was ~38 km west).
+    ("Makueni Town", "Makueni", Ward.Regions.SOUTH_EASTERN, "-1.7808", "37.6288"),
     ("Machakos Town", "Machakos", Ward.Regions.SOUTH_EASTERN, "-1.5177", "37.2633"),
     ("Kibwezi", "Makueni", Ward.Regions.SOUTH_EASTERN, "-2.4067", "37.9634"),
-    ("Westlands", "Nairobi", Ward.Regions.METROPOLITAN, "-1.0560", "36.8000"),
+    # Checked 18 Nov 2026; the earlier latitude placed it ~23 km north of Nairobi.
+    ("Westlands", "Nairobi", Ward.Regions.METROPOLITAN, "-1.2669", "36.8117"),
     ("Mombasa Island", "Mombasa", Ward.Regions.METROPOLITAN, "-4.0435", "39.6682"),
 ]
 CROPS = [
@@ -69,7 +71,8 @@ class Command(BaseCommand):
 
         wards = {}
         for name, county, region, lat, lng in WARDS:
-            ward, _ = Ward.objects.get_or_create(
+            # update_or_create so re-running the seed fixes coordinates in an existing database
+            ward, _ = Ward.objects.update_or_create(
                 name=name,
                 county=county,
                 defaults={"region": region, "lat": Decimal(lat), "lng": Decimal(lng)},
@@ -136,9 +139,12 @@ class Command(BaseCommand):
             version="v3",
             defaults={"config": load_file_config(), "active": True},
         )
-        if not ruleset.active:
+        file_config = load_file_config()
+        if not ruleset.active or ruleset.config != file_config:
+            # Keep the stored rules in step with rules/v1.json when the seed is re-run.
             ruleset.active = True
-            ruleset.save(update_fields=["active"])
+            ruleset.config = file_config
+            ruleset.save(update_fields=["active", "config"])
 
         demand_values = {
             "maize": Decimal("120"),

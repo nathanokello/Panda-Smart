@@ -13,4 +13,5 @@ urlpatterns = [
     path("api/v1/", include("core.urls")),
     path("api/v1/", include("records.urls")),
     path("api/v1/", include("planting.urls")),
+    path("api/v1/", include("geoagri.urls")),
 ]

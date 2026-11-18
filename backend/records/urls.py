@@ -4,6 +4,7 @@ from records.views import (
     LotDetailView,
     LotEventsView,
     LotListCreateView,
+    MyVerificationLinksView,
     VerifyChainView,
     VerifyConfirmView,
     VerifyDetailView,
@@ -11,6 +12,7 @@ from records.views import (
 )
 
 urlpatterns = [
+    path("me/verification-links/", MyVerificationLinksView.as_view(), name="my-verification-links"),
     path("lots/", LotListCreateView.as_view(), name="lot-list"),
     path("lots/<uuid:lot_id>/", LotDetailView.as_view(), name="lot-detail"),
     path("lots/<uuid:lot_id>/events/", LotEventsView.as_view(), name="lot-events"),

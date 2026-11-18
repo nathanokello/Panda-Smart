@@ -37,6 +37,17 @@ class Lot(UUIDModel):
     location_label = models.CharField(max_length=200)
     registered_at = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=20, choices=Statuses.choices, default=Statuses.STORED)
+    class MoistureStatuses(models.TextChoices):
+        UNKNOWN = "unknown", "Limit not confirmed"
+        DRY = "dry", "Dry enough"
+        RETEST = "retest", "Needs re-test"
+        OFFICER = "officer", "Extension officer needed"
+
+    moisture_status = models.CharField(
+        max_length=20, choices=MoistureStatuses.choices, default=MoistureStatuses.UNKNOWN
+    )
+    retest_count = models.PositiveIntegerField(default=0)
+    next_check_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-registered_at",)
@@ -55,6 +66,7 @@ class LotEvent(UUIDModel):
         VERIFIED = "VERIFIED", "Verified by farmer"
         DISPUTED = "DISPUTED", "Disputed by farmer"
         CORRECTION = "CORRECTION", "Correction"
+        SYSTEM_DECISION = "SYSTEM_DECISION", "System moisture decision"
 
     lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="events")
     type = models.CharField(max_length=30, choices=Types.choices)
@@ -95,3 +107,20 @@ class VerificationToken(UUIDModel):
 
     def __str__(self):
         return f"Verify token for {self.lot_id}"
+
+
+class ScheduledCheck(UUIDModel):
+    class Types(models.TextChoices):
+        RETEST = "retest", "Moisture re-test"
+        CHECKUP = "checkup", "Storage check-up"
+
+    lot = models.ForeignKey(Lot, on_delete=models.CASCADE, related_name="scheduled_checks")
+    kind = models.CharField(max_length=20, choices=Types.choices)
+    due_at = models.DateTimeField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+    moisture_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    good_weight_kg = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    pests = models.BooleanField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("due_at",)

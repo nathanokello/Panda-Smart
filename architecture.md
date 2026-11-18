@@ -171,13 +171,20 @@ All paths are under `/api/v1/`. Request and response examples are the **agreed s
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| POST | `/auth/login/` | public | Phone + password, returns token |
-| GET | `/auth/me/` | any | Current user and role |
-| GET | `/wards/` | any | List wards |
-| GET | `/crops/` | any | List crops |
+| POST | `/auth/login/` | public | Phone + password, returns token. Accepts `0712…`, `254712…` or `+254712…` |
+| POST | `/auth/logout/` | any | Deletes the caller's token (204) |
+| POST | `/auth/register/farmer/` | public | Farmer self-registration `{name, phone, password, ward_id, consent_given}`; role is always `farmer`; returns `{token, user}` (201) |
+| GET | `/auth/me/` | any | Current user and role; includes `farmer_id` for farmer logins |
+| GET | `/wards/` | public | List wards (public so the sign-up form can load them) |
+| GET | `/crops/` | public | List crops |
 | GET, POST | `/farmers/` | agent, coop_admin | List or register a farmer |
 | GET | `/farmers/{id}/` | agent, coop_admin, that farmer | Farmer detail |
 | GET, POST | `/farmers/{id}/plots/` | agent, coop_admin, that farmer | Plots |
+| GET | `/tenants/` | coop_admin (own), admin (all) | Cooperatives for the Users page |
+| GET, POST | `/users/` | coop_admin, admin | Staff accounts. Coop admins see their cooperative and create agents only; admins manage all staff roles |
+| GET, PATCH | `/users/{id}/` | coop_admin, admin | Change `name`, `role`, `tenant_id`, `is_active`, `password`. No DELETE: deactivate. Nobody edits their own account. Role, cooperative, password or status changes revoke the user's tokens |
+
+Tokens expire after `TOKEN_TTL_HOURS` (default 168). Login is limited per IP and per phone number.
 
 **Login**
 
@@ -264,14 +271,25 @@ All paths are under `/api/v1/`. Request and response examples are the **agreed s
 
 Public verify endpoints reveal only that one lot, are rate limited, and the token expires (default 14 days) and is single-use for confirm or dispute.
 
+`verification_url` points at the HTML frontend: `{FRONTEND_BASE_URL}{FRONTEND_VERIFY_PATH}{token}`, by default `http://127.0.0.1:5500/verify.html?token=<token>`. Set `FRONTEND_VERIFY_PATH=/verify/` for a frontend with path routing.
+
+`summary` also carries `initial_weight_kg`. A `CORRECTION` whose `new_payload` has `weight_kg` or `moisture_pct` replaces that value of the corrected `REGISTERED`, `WEIGHT_READING` or `MOISTURE_READING` event in the summary; the original event is unchanged.
+
 ### 6.3 Planting (Person B)
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
 | GET | `/advice/?ward={id}&crop={code}` | any | Planting window and confidence |
 | POST | `/planting-intents/` | farmer, agent | Register intended crop and acres |
-| GET | `/planting-intents/` | agent, coop_admin | List intents (filters: `ward`, `crop`, `season`) |
+| GET | `/planting-intents/` | farmer (own only), agent, coop_admin | List intents (filters: `ward`, `crop`, `season`) |
 | GET | `/wards/{id}/slots/?crop={code}` | any | Slot availability for a crop in a ward |
+| GET, POST | `/farmers/{id}/seasons/` | that farmer, staff of the farmer's cooperative, admin | Season records: `season` (e.g. `2026-long-rains`), `crop`, `variety`, `acres`, `planted_on`, `methods`, `harvested_on`, `harvest_kg`, `outcome_notes`, optional `plot_id`; response adds `yield_kg_per_acre` |
+| GET, PATCH | `/seasons/{id}/` | same | Add the harvest later or fix a typo (season records are planning notes, not proof, so they are editable) |
+| GET, POST | `/farmers/{id}/soil-tests/` | same | `tested_on`, `source` (`lab`, `kit`, `extension_officer`, `other`), at least one of `ph`, `organic_carbon_pct`, `nitrogen_pct`, `phosphorus_ppm`, `potassium_ppm`; response adds `guidance` |
+| GET | `/farmers/{id}/history/` | same | What worked before: per crop `seasons`, `avg_yield_kg_per_acre`, `best {season, variety, methods, yield_kg_per_acre}`, `storage_lots`, `avg_storage_loss_pct` (from records via `records.services.get_loss_by_crop_for_farmer`); plus `latest_soil_test` |
+| GET | `/wards/{id}/weather/` | any | 7-day forecast `{enabled, ward, provider, attribution, days:[{date, rain_mm, temp_max_c, temp_min_c, rain_chance_pct}]}`; `{enabled:false}` unless `OPEN_METEO_ENABLED=1` (non-commercial licence) |
+
+Advice uses rainfall from one source only, in `RAINFALL_SOURCE_PRIORITY` order (default NASA POWER, then CHIRPS), so the same rain is never counted twice. `python manage.py fetch_rainfall` loads NASA POWER data.
 
 **Advice**
 
@@ -332,6 +350,8 @@ Public verify endpoints reveal only that one lot, are rate limited, and the toke
 }
 ```
 
+`oversubscription_pct` = (intended − expected) ÷ expected × 100, never below 0 (120 against 90 gives 33.33).
+
 `sell_flag` is one of `sell_now`, `hold`, `watch`. **Privacy rule:** if a ward has fewer than 5 farmers for a crop, return `null` for the numbers and add `"suppressed": true`.
 
 ### 6.5 USSD / SMS (Person B)
@@ -340,11 +360,13 @@ Public verify endpoints reveal only that one lot, are rate limited, and the toke
 |---|---|---|
 | POST | `/ussd/` | Africa's Talking USSD callback (form-encoded: `sessionId`, `phoneNumber`, `text`) |
 
-Response is plain text starting with `CON ` (continue) or `END ` (finish). Session state is stored in a `UssdSession` table keyed by `sessionId`. Menu: 1) Planting advice, 2) My planting slot, 3) Verify my grain. Keep menus to three levels or fewer. USSD calls the same service functions as the REST views.
+Response is plain text starting with `CON ` (continue) or `END ` (finish), at most 182 characters. When `USSD_CALLBACK_SECRET` is set, the callback URL must include `?key=<secret>`; with `DEBUG=0` the secret is required. (Menu 3 returns a farmer's private verify link, so an open endpoint would let anyone fetch it.) Session state is stored in a `UssdSession` table keyed by `sessionId`. Menu: 1) Planting advice, 2) My planting slot, 3) Verify my grain. Keep menus to three levels or fewer. USSD calls the same service functions as the REST views.
 
 ---
 
 ## 7. Frontend guide
+
+> **Current frontend:** the plain HTML/CSS/JS app in `frontend/html/` implements every screen below (see its README). The React/Vite folder `frontend/panda-smart-frontend/` is an unfinished shell; the team should decide whether to keep it (Section 13).
 
 ### 7.1 Screens and the endpoints they use
 
@@ -471,3 +493,6 @@ panda-smart/
 | Confirm Django (versus FastAPI or Node) with the whole team | Day 1 |
 | Whether farmers log in to the web app or only use the verify link and USSD | Phase 1 |
 | Where the demo will be presented (online or offline, affects hosting choice) | Phase 4 |
+| Keep the HTML frontend and retire the React shell, or the reverse | Now |
+| Loss method: raw weight difference (current) or dry-matter basis at a standard moisture | Before pilot |
+| Whether signed-in farmers can list their own lots (needs a farmer-scoped endpoint) | Phase 2 |

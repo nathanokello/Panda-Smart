@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Farmers | Panda Smart</title>
+  <link rel="icon" href="assets/panda-smart-logo.jpg"><link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/ui.js" defer></script>
+  <script src="js/farmers.js" defer></script>
+</head>
+<body class="dashboard-page">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-area">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton" type="button" aria-label="Toggle navigation">☰</button>
+      <h1 class="page-title" id="pageTitle">Farmers</h1>
+      <div class="topbar-right">
+        <div class="user-summary">
+          <div class="avatar" id="userAvatar">·</div>
+          <div><strong id="userName">…</strong><small id="userRole"></small></div>
+        </div>
+      </div>
+    </header>
+    <section class="dashboard-content">
+
+      <div class="two-col">
+        <section class="panel">
+          <div class="toolbar">
+            <h2 style="margin:0">Registered farmers</h2>
+            <input id="farmerSearch" type="search" placeholder="Search name or phone" aria-label="Search farmers">
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Name</th><th>Phone</th><th>Ward</th><th>Plots</th><th>Consent</th></tr></thead>
+              <tbody id="farmerRows"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel" id="registerPanel">
+          <h2>Register a farmer</h2>
+          <p class="muted small">Read the privacy notice to the farmer and tick consent only if they agree. No record is created without consent.</p>
+          <form id="farmerForm" class="form-grid">
+            <div class="field full"><label for="fName">Full name</label><input id="fName" name="name" required maxlength="150"></div>
+            <div class="field"><label for="fPhone">Phone number</label><input id="fPhone" name="phone" type="tel" required placeholder="0712 345 678"></div>
+            <div class="field"><label for="fWard">Ward</label><select id="fWard" name="ward" required><option value="">Loading…</option></select></div>
+            <label class="check-row full"><input type="checkbox" id="fConsent" required><span>The farmer agrees to Panda Smart storing their name, phone, ward and grain records (<a href="privacy.html" target="_blank">privacy notice</a>).</span></label>
+            <label class="check-row full"><input type="checkbox" id="fLogin"><span>Also create a web login for this farmer</span></label>
+            <div class="field full" id="fPasswordWrap" hidden><label for="fPassword">Temporary password</label><input id="fPassword" type="password" minlength="8" autocomplete="new-password"><p class="hint">At least 8 characters. Give it to the farmer privately.</p></div>
+            <div class="full"><p class="form-message" id="farmerMessage" role="alert"></p>
+              <button class="button button-primary" type="submit">Register farmer</button></div>
+          </form>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

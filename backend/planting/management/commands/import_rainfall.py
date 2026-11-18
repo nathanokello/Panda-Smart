@@ -1,4 +1,8 @@
-"""Import CHIRPS-style rainfall CSV files: ward_name,date,rainfall_mm,source."""
+"""Import CHIRPS-style rainfall CSV files: ward_name,date,rainfall_mm[,source][,county].
+
+Ward names are only unique within a county, so add a county column when two
+counties have a ward with the same name.
+"""
 import csv
 from datetime import date
 from decimal import Decimal
@@ -27,10 +31,14 @@ class Command(BaseCommand):
             if not required.issubset(reader.fieldnames or []):
                 raise CommandError(f"CSV must have columns: {', '.join(sorted(required))}")
             for row in reader:
-                ward = Ward.objects.filter(name=row["ward_name"]).first()
-                if not ward:
-                    self.stderr.write(f"Skipping unknown ward: {row['ward_name']}")
+                wards = Ward.objects.filter(name=row["ward_name"])
+                if row.get("county"):
+                    wards = wards.filter(county=row["county"])
+                if wards.count() != 1:
+                    problem = "unknown" if not wards.exists() else "ambiguous (add a county column)"
+                    self.stderr.write(f"Skipping {problem} ward: {row['ward_name']}")
                     continue
+                ward = wards.first()
                 _, was_created = RainfallObservation.objects.get_or_create(
                     ward=ward,
                     date=date.fromisoformat(row["date"]),

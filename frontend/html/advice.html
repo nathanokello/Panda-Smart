@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planting | Panda Smart</title>
+  <link rel="icon" href="assets/panda-smart-logo.jpg"><link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/ui.js" defer></script>
+  <script src="js/advice.js" defer></script>
+</head>
+<body class="dashboard-page">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-area">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton" type="button" aria-label="Toggle navigation">☰</button>
+      <h1 class="page-title" id="pageTitle">Planting</h1>
+      <div class="topbar-right">
+        <div class="user-summary">
+          <div class="avatar" id="userAvatar">·</div>
+          <div><strong id="userName">…</strong><small id="userRole"></small></div>
+        </div>
+      </div>
+    </header>
+    <section class="dashboard-content">
+
+      <div class="two-col">
+        <div class="stack">
+          <section class="panel">
+            <h2>Planting advice</h2>
+            <p class="muted small">Rule-based advice from recent rainfall records for the ward. It is an estimate, not a forecast.</p>
+            <form id="adviceForm" class="form-grid">
+              <div class="field"><label for="aWard">Ward</label><select id="aWard" required></select></div>
+              <div class="field"><label for="aCrop">Crop</label><select id="aCrop" required></select></div>
+              <div class="full"><button class="button button-primary" type="submit">Get advice</button>
+                <p class="form-message" id="adviceMessage" role="alert"></p></div>
+            </form>
+            <div id="adviceResult"></div>
+          </section>
+          <section class="panel">
+            <h2>Planting windows in this ward</h2>
+            <div id="slotResult"><p class="muted">Choose a ward and crop above.</p></div>
+          </section>
+        </div>
+        <div class="stack">
+          <section class="panel">
+            <h2>Tell us what you plan to plant</h2>
+            <p class="muted small">Helps your ward avoid everyone planting the same crop at once.</p>
+            <form id="intentForm" class="form-grid">
+              <div class="field full" id="iFarmerWrap" hidden><label for="iFarmer">Farmer</label><select id="iFarmer"></select></div>
+              <div class="field"><label for="iCrop">Crop</label><select id="iCrop" required></select></div>
+              <div class="field"><label for="iAcres">Acres</label><input id="iAcres" type="number" min="0.01" step="0.01" required></div>
+              <div class="field full"><label for="iPlot">Plot</label><select id="iPlot"><option value="">No specific plot</option></select></div>
+              <div class="full"><p class="form-message" id="intentMessage" role="alert"></p>
+                <button class="button button-primary" type="submit">Submit plan</button></div>
+            </form>
+            <div id="intentResult"></div>
+          </section>
+          <section class="panel">
+            <h2 id="intentListTitle">Planting plans</h2>
+            <div class="table-wrap"><table class="data-table">
+              <thead><tr><th>Crop</th><th>Acres</th><th>Window</th><th></th></tr></thead>
+              <tbody id="intentRows"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
+            </table></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

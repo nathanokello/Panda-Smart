@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seasons & soil | Panda Smart</title>
+  <link rel="icon" href="assets/panda-smart-logo.jpg"><link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/ui.js" defer></script>
+  <script src="js/seasons.js" defer></script>
+</head>
+<body class="dashboard-page">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-area">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton" type="button" aria-label="Toggle navigation">☰</button>
+      <h1 class="page-title" id="pageTitle">Seasons & soil</h1>
+      <div class="topbar-right">
+        <div class="user-summary">
+          <div class="avatar" id="userAvatar">·</div>
+          <div><strong id="userName">…</strong><small id="userRole"></small></div>
+        </div>
+      </div>
+    </header>
+    <section class="dashboard-content">
+
+      <section class="panel" id="learnPanel"><h2>What worked before</h2><p class="muted">Loading…</p></section>
+      <div class="two-col" style="margin-top:18px">
+        <div class="stack">
+          <section class="panel">
+            <h2>Season records</h2>
+            <div class="table-wrap"><table class="data-table">
+              <thead><tr><th>Season</th><th>Crop</th><th>Acres</th><th>Harvest</th><th>Per acre</th><th></th></tr></thead>
+              <tbody id="seasonRows"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+            </table></div>
+          </section>
+          <section class="panel">
+            <h2>Soil tests</h2>
+            <div id="soilList"><p class="muted">Loading…</p></div>
+          </section>
+        </div>
+        <div class="stack">
+          <section class="panel">
+            <h2 id="seasonFormTitle">Record a season</h2>
+            <form id="seasonForm" class="form-grid">
+              <div class="field"><label for="sSeason">Season</label><select id="sSeason" required></select></div>
+              <div class="field"><label for="sCrop">Crop</label><select id="sCrop" required></select></div>
+              <div class="field"><label for="sVariety">Variety</label><input id="sVariety" maxlength="100" placeholder="e.g. H513, DH04, local"></div>
+              <div class="field"><label for="sAcres">Acres</label><input id="sAcres" type="number" min="0.01" step="0.01"></div>
+              <div class="field"><label for="sPlanted">Planted on</label><input id="sPlanted" type="date"></div>
+              <div class="field"><label for="sPlot">Plot</label><select id="sPlot"><option value="">Not specified</option></select></div>
+              <div class="field full"><label for="sMethods">What you did</label><textarea id="sMethods" maxlength="2000" placeholder="Seed, fertiliser, spacing, weeding, pest control…"></textarea></div>
+              <div class="field"><label for="sHarvested">Harvested on</label><input id="sHarvested" type="date"></div>
+              <div class="field"><label for="sHarvest">Harvest (kg)</label><input id="sHarvest" type="number" min="0" step="0.1" placeholder="Add later if not yet harvested"></div>
+              <div class="field full"><label for="sNotes">What happened</label><textarea id="sNotes" maxlength="2000" placeholder="Late rains, fall armyworm, good prices…"></textarea></div>
+              <div class="full"><p class="form-message" id="seasonMessage" role="alert"></p>
+                <div class="form-actions" style="margin-top:0"><button class="button button-primary" type="submit">Save season</button>
+                <button class="button button-outline" style="margin:0" type="button" id="cancelEdit" hidden>Cancel editing</button></div></div>
+            </form>
+          </section>
+          <section class="panel">
+            <h2>Add a soil test</h2>
+            <p class="muted small">From a lab, a test kit or an extension officer. Enter the values you have.</p>
+            <form id="soilForm" class="form-grid">
+              <div class="field"><label for="tDate">Tested on</label><input id="tDate" type="date" required></div>
+              <div class="field"><label for="tSource">Source</label><select id="tSource">
+                <option value="lab">Laboratory</option><option value="kit">Field test kit</option>
+                <option value="extension_officer">Extension officer</option><option value="other">Other</option></select></div>
+              <div class="field"><label for="tPh">pH</label><input id="tPh" type="number" min="2" max="11" step="0.01"></div>
+              <div class="field"><label for="tOc">Organic carbon (%)</label><input id="tOc" type="number" min="0" max="60" step="0.01"></div>
+              <div class="field"><label for="tN">Nitrogen (%)</label><input id="tN" type="number" min="0" max="10" step="0.001"></div>
+              <div class="field"><label for="tP">Phosphorus (ppm)</label><input id="tP" type="number" min="0" step="0.1"></div>
+              <div class="field"><label for="tK">Potassium (ppm)</label><input id="tK" type="number" min="0" step="0.1"></div>
+              <div class="field full"><label for="tNotes">Notes</label><input id="tNotes" maxlength="500"></div>
+              <div class="full"><p class="form-message" id="soilMessage" role="alert"></p>
+                <button class="button button-primary" type="submit">Save soil test</button></div>
+            </form>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

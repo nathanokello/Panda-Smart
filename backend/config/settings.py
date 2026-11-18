@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "core",
     "records",
     "planting",
+    "geoagri",
     "seed",
 ]
 
@@ -111,7 +112,7 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework.authentication.TokenAuthentication",),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("core.authentication.ExpiringTokenAuthentication",),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 20,
@@ -120,8 +121,12 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
         "login": "10/min",
+        "login_phone": os.environ.get("LOGIN_PHONE_RATE", "20/hour"),
+        "register": "5/min",
         "verify": "30/min",
         "ussd": "60/min",
+        "geoagri_read": "120/hour",
+        "geoagri_write": "30/hour",
     },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
@@ -132,7 +137,7 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
     "SERVE_AUTHENTICATION": [],
-    "AUTHENTICATION_WHITELIST": ["rest_framework.authentication.TokenAuthentication"],
+    "AUTHENTICATION_WHITELIST": ["core.authentication.ExpiringTokenAuthentication"],
     "SCHEMA_PATH_PREFIX": "/api/v1",
     "COMPONENT_SPLIT_REQUEST": True,
 }
@@ -140,14 +145,33 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
-        "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000"
+        "CORS_ALLOWED_ORIGINS",
+        # 5500: the HTML frontend served with `python -m http.server 5500` or Live Server.
+        "http://localhost:5500,http://127.0.0.1:5500,http://localhost:5173,http://localhost:3000",
     ).split(",")
     if origin.strip()
 ]
 CORS_ALLOW_ALL_ORIGINS = DEBUG and not CORS_ALLOWED_ORIGINS
 
 # Project-specific settings
-FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://127.0.0.1:5500").rstrip("/")
+# Path of the public verify page. The HTML frontend is static files, so the
+# token goes in the query string: verify.html?token=<token>.
+FRONTEND_VERIFY_PATH = os.environ.get("FRONTEND_VERIFY_PATH", "/verify.html?token=")
+# Tenant name for farmers who register themselves (default: oldest cooperative).
+SELF_REGISTER_TENANT = os.environ.get("SELF_REGISTER_TENANT", "")
 VERIFY_TOKEN_TTL_DAYS = int(os.environ.get("VERIFY_TOKEN_TTL_DAYS", "14"))
+# Sign-in tokens expire after this many hours (0 = never). Default 7 days.
+TOKEN_TTL_HOURS = int(os.environ.get("TOKEN_TTL_HOURS", "168"))
+# Rainfall used by planting advice, first available wins (see planting/services.py).
+RAINFALL_SOURCE_PRIORITY = [
+    item.strip()
+    for item in os.environ.get("RAINFALL_SOURCE_PRIORITY", "NASA_POWER,CHIRPS").split(",")
+    if item.strip()
+]
+# Open-Meteo forecasts are free for NON-COMMERCIAL use only. Off by default.
+OPEN_METEO_ENABLED = os.environ.get("OPEN_METEO_ENABLED", "0") == "1"
+# Shared secret in the USSD callback URL (?key=...). Required when DEBUG is off.
+USSD_CALLBACK_SECRET = os.environ.get("USSD_CALLBACK_SECRET", "")
 AT_USERNAME = os.environ.get("AT_USERNAME", "sandbox")
 AT_API_KEY = os.environ.get("AT_API_KEY", "")

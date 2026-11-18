@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Create farmer account | Panda Smart</title><link rel="icon" href="assets/panda-smart-logo.jpg"><link rel="stylesheet" href="css/styles.css"><script src="js/config.js"></script><script src="js/api.js" defer></script><script src="js/ui.js" defer></script><script src="js/auth.js" defer></script></head>
+<body class="auth-page">
+  <main class="auth-card">
+    <section class="auth-visual"><img class="auth-logo" src="assets/panda-smart-logo.jpg" alt="Panda Smart"><div class="auth-visual-copy"><span>PLANT TODAY. GROW TOMORROW.</span><h1>Every great harvest begins with a seed.</h1><p>Join a smarter, more connected farming community.</p></div></section>
+    <section class="auth-form-wrap">
+      <div class="auth-form register-form">
+        <a class="mobile-brand" href="login.html"><img src="assets/panda-smart-logo.jpg" alt="Panda Smart"></a>
+        <p class="eyebrow">JOIN PANDA SMART</p><h2>Create your farmer account</h2><p class="form-intro">Register to keep your farm, planting and grain storage records in one place.</p>
+        <form id="registerForm">
+          <label for="fullName">Full name</label><input id="fullName" name="name" type="text" autocomplete="name" placeholder="Enter your full name" required>
+          <label for="registerPhone">Phone number</label><input id="registerPhone" name="phone" type="tel" autocomplete="tel" placeholder="0712 345 678 or +254 712 345 678" required>
+          <label for="wardSelect">Ward</label><select id="wardSelect" name="ward_id" required><option value="">Loading wards…</option></select>
+          <label for="registerPassword">Password</label><div class="password-wrap"><input id="registerPassword" name="password" type="password" minlength="8" autocomplete="new-password" placeholder="At least 8 characters" required><button type="button" class="password-toggle" data-toggle="registerPassword" aria-label="Show password">◉</button></div>
+          <label for="confirmPassword">Confirm password</label><div class="password-wrap"><input id="confirmPassword" name="confirm_password" type="password" minlength="8" autocomplete="new-password" placeholder="Re-enter your password" required><button type="button" class="password-toggle" data-toggle="confirmPassword" aria-label="Show password">◉</button></div>
+          <label class="consent-row"><input id="consent" type="checkbox" required><span>I agree that Panda Smart may store my name, phone number, ward and grain records as described in the <a href="privacy.html" target="_blank">Privacy Policy</a>.</span></label>
+          <p class="form-message" id="registerMessage" role="alert"></p>
+          <button class="button button-primary auth-submit" type="submit">Create Farmer Account <span>→</span></button>
+        </form>
+        <p class="auth-switch">Already have an account? <a href="login.html">Sign in</a></p>
+        <p class="auth-footnote">Public registration is available to farmers only. Agents and administrators are provisioned by authorized administrators.</p>
+      </div>
+    </section>
+  </main>
+</body></html>

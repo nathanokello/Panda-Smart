@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hifadhi Mavuno: grain lots | Panda Smart</title>
+  <link rel="icon" href="assets/panda-smart-logo.jpg"><link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/ui.js" defer></script>
+  <script src="js/lots.js" defer></script>
+</head>
+<body class="dashboard-page">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-area">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton" type="button" aria-label="Toggle navigation">☰</button>
+      <h1 class="page-title" id="pageTitle">Hifadhi Mavuno: grain lots</h1>
+      <div class="topbar-right">
+        <div class="user-summary">
+          <div class="avatar" id="userAvatar">·</div>
+          <div><strong id="userName">…</strong><small id="userRole"></small></div>
+        </div>
+      </div>
+    </header>
+    <section class="dashboard-content">
+
+      <div class="two-col">
+        <section class="panel">
+          <div class="toolbar">
+            <h2 style="margin:0">Grain lots</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <select id="statusFilter" aria-label="Filter by status">
+                <option value="">All statuses</option><option value="stored">Stored</option>
+                <option value="disputed">Disputed</option><option value="sold">Sold</option><option value="closed">Closed</option>
+              </select>
+              <select id="cropFilter" aria-label="Filter by crop"><option value="">All crops</option></select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Registered</th><th>Farmer</th><th>Crop</th><th>Stored</th><th>Now</th><th>Loss</th><th>Status</th></tr></thead>
+              <tbody id="lotRows"><tr><td colspan="7" class="empty-row">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel" id="lotFormPanel" hidden>
+          <h2>Register a lot</h2>
+          <form id="lotForm" class="form-grid">
+            <div class="field full"><label for="lFarmer">Farmer</label><select id="lFarmer" required><option value="">Loading…</option></select>
+              <p class="hint">Not listed? <a href="farmers.html">Register the farmer first</a>.</p></div>
+            <div class="field"><label for="lCrop">Crop</label><select id="lCrop" required></select></div>
+            <div class="field"><label for="lWeight">Weight (kg)</label><input id="lWeight" type="number" min="0.01" step="0.01" required></div>
+            <div class="field"><label for="lBags">Number of bags</label><input id="lBags" type="number" min="0" step="1" required></div>
+            <div class="field"><label for="lMethod">Storage method</label><select id="lMethod" required>
+              <option value="hermetic_bag">Hermetic bag</option><option value="polypropylene_bag">Polypropylene bag</option>
+              <option value="crib">Crib</option><option value="metal_silo">Metal silo</option><option value="warehouse">Warehouse</option><option value="other">Other</option></select></div>
+            <div class="field"><label for="lMoisture">Moisture (%)</label><input id="lMoisture" type="number" min="0" max="100" step="0.1" placeholder="Optional"></div>
+            <div class="field"><label for="lLocation">Store / location</label><input id="lLocation" required maxlength="200" placeholder="e.g. Kitui Central store 2"></div>
+            <div class="full"><p class="form-message" id="lotMessage" role="alert"></p>
+              <button class="button button-primary" type="submit">Register lot</button></div>
+          </form>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

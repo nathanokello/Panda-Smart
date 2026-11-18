@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My farm | Panda Smart</title>
+  <link rel="icon" href="assets/panda-smart-logo.jpg"><link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/ui.js" defer></script>
+  <script src="js/farm.js" defer></script>
+</head>
+<body class="dashboard-page">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-area">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton" type="button" aria-label="Toggle navigation">☰</button>
+      <h1 class="page-title" id="pageTitle">My farm</h1>
+      <div class="topbar-right">
+        <div class="user-summary">
+          <div class="avatar" id="userAvatar">·</div>
+          <div><strong id="userName">…</strong><small id="userRole"></small></div>
+        </div>
+      </div>
+    </header>
+    <section class="dashboard-content">
+
+      <div class="two-col">
+        <div class="stack">
+          <section class="panel" id="profilePanel"><h2>Farmer record</h2><p class="muted">Loading…</p></section>
+          <section class="panel">
+            <h2>Plots</h2>
+            <div class="table-wrap"><table class="data-table">
+              <thead><tr><th>Ward</th><th>Acres</th><th>Added</th></tr></thead>
+              <tbody id="plotRows"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
+            </table></div>
+          </section>
+          <section class="panel" id="lotsPanel" hidden>
+            <h2>Grain lots</h2>
+            <div class="table-wrap"><table class="data-table">
+              <thead><tr><th>Crop</th><th>Stored</th><th>Now</th><th>Loss</th><th>Status</th></tr></thead>
+              <tbody id="farmerLotRows"></tbody>
+            </table></div>
+          </section>
+        </div>
+        <section class="panel">
+          <h2>Add a plot</h2>
+          <form id="plotForm" class="form-grid">
+            <div class="field full"><label for="pWard">Ward</label><select id="pWard" required><option value="">Loading…</option></select></div>
+            <div class="field full"><label for="pAcres">Size (acres)</label><input id="pAcres" type="number" min="0.01" step="0.01" required></div>
+            <p class="hint full muted small">Only the approximate size is stored. Exact farm location is not collected.</p>
+            <div class="full"><p class="form-message" id="plotMessage" role="alert"></p>
+              <button class="button button-primary" type="submit">Add plot</button></div>
+          </form>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

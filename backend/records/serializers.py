@@ -36,7 +36,14 @@ class LotRegisterSerializer(serializers.Serializer):
         return farmer
 
     def validate_crop(self, value):
-        return core_services.get_crop_or_404(value)
+        crop = core_services.get_crop_or_404(value)
+        if not crop.storable:
+            # Scope boundary: watermelon is handled through planting and market
+            # matching only, because it cannot be stored like grain.
+            raise serializers.ValidationError(
+                f"{crop.name_en} cannot be registered as a stored lot."
+            )
+        return crop
 
     def validate(self, attrs):
         user = self.context["request"].user
@@ -53,10 +60,14 @@ class AgentRefSerializer(serializers.Serializer):
 
 
 class LotSummarySerializer(serializers.Serializer):
+    initial_weight_kg = serializers.FloatField()
     latest_weight_kg = serializers.FloatField()
     loss_kg = serializers.FloatField()
     loss_pct = serializers.FloatField()
     latest_moisture_pct = serializers.FloatField(allow_null=True)
+    dry_matter_latest_weight_kg = serializers.FloatField()
+    dry_matter_loss_kg = serializers.FloatField()
+    dry_matter_loss_pct = serializers.FloatField()
 
 
 class LotSerializer(serializers.ModelSerializer):
@@ -66,6 +77,7 @@ class LotSerializer(serializers.ModelSerializer):
     agent = serializers.SerializerMethodField()
     verification_url = serializers.SerializerMethodField()
     summary = serializers.SerializerMethodField()
+    follow_ups = serializers.SerializerMethodField()
 
     class Meta:
         model = Lot
@@ -81,6 +93,10 @@ class LotSerializer(serializers.ModelSerializer):
             "agent",
             "verification_url",
             "summary",
+            "moisture_status",
+            "retest_count",
+            "next_check_at",
+            "follow_ups",
         )
 
     @extend_schema_field(AgentRefSerializer)
@@ -95,6 +111,20 @@ class LotSerializer(serializers.ModelSerializer):
     @extend_schema_field(LotSummarySerializer)
     def get_summary(self, obj):
         return services.get_summary(obj)
+
+    def get_follow_ups(self, obj):
+        return [
+            {
+                "id": str(check.id),
+                "kind": check.kind,
+                "due_at": check.due_at,
+                "completed_at": check.completed_at,
+                "moisture_pct": float(check.moisture_pct) if check.moisture_pct is not None else None,
+                "good_weight_kg": float(check.good_weight_kg) if check.good_weight_kg is not None else None,
+                "pests": check.pests,
+            }
+            for check in obj.scheduled_checks.all()
+        ]
 
 
 class LotEventSerializer(serializers.ModelSerializer):
@@ -112,7 +142,17 @@ class LotEventSerializer(serializers.ModelSerializer):
 
 
 class EventCreateSerializer(serializers.Serializer):
-    type = serializers.ChoiceField(choices=LotEvent.Types.choices)
+    # Staff may add readings, check-ups, losses and corrections only. REGISTERED
+    # is written when the lot is created, and VERIFIED/DISPUTED may only come
+    # from the farmer through the private link. Otherwise an agent could record
+    # a confirmation on the farmer's behalf and defeat the safeguard.
+    type = serializers.ChoiceField(
+        choices=[
+            (value, label)
+            for value, label in LotEvent.Types.choices
+            if value in services.STAFF_EVENT_TYPES
+        ]
+    )
     payload = serializers.JSONField()
 
     def validate(self, attrs):

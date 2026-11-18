@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panda Smart | Dashboard</title>
+  <link rel="icon" href="assets/panda-smart-logo.jpg"><link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/ui.js" defer></script>
+  <script src="js/dashboard.js" defer></script>
+</head>
+<body class="dashboard-page">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-area">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton" type="button" aria-label="Toggle navigation">☰</button>
+      <h1 class="page-title" id="pageTitle">Dashboard</h1>
+      <div class="topbar-right">
+        <div class="user-summary">
+          <div class="avatar" id="userAvatar">·</div>
+          <div><strong id="userName">…</strong><small id="userRole"></small></div>
+        </div>
+      </div>
+    </header>
+
+    <section class="dashboard-content">
+      <section class="welcome-banner">
+        <div class="welcome-copy">
+          <h1>Welcome back<span id="welcomeName"></span>! <span aria-hidden="true">👋</span></h1>
+          <p id="welcomeLine">Smart farming. Greater harvests.</p>
+        </div>
+        <div class="welcome-image" role="img" aria-label="Farmer working in a green field"></div>
+      </section>
+
+      <section class="stats-grid" aria-label="Summary figures">
+        <article class="stat-card stat-green"><div class="stat-icon">🌱</div><div><strong id="stat1">—</strong><span id="stat1Label"></span></div></article>
+        <article class="stat-card stat-blue"><div class="stat-icon">🌾</div><div><strong id="stat2">—</strong><span id="stat2Label"></span></div></article>
+        <article class="stat-card stat-yellow"><div class="stat-icon">🌽</div><div><strong id="stat3">—</strong><span id="stat3Label"></span></div></article>
+        <article class="stat-card stat-purple"><div class="stat-icon">🏚</div><div><strong id="stat4">—</strong><span id="stat4Label"></span></div></article>
+      </section>
+
+      <section class="feature-grid">
+        <article class="panel" id="panelA"></article>
+        <article class="panel" id="panelB"></article>
+      </section>
+
+      <section class="bottom-grid">
+        <article class="panel" id="panelC"></article>
+        <article class="panel" id="panelD"></article>
+        <article class="food-banner">
+          <div><h2>Together for a<br>Food Secure Kenya</h2><p>Panda Smart – Empowering Farmers, Enriching Lives.</p></div>
+          <div class="food-leaf" aria-hidden="true">🌿</div>
+        </article>
+      </section>
+      <p class="data-note" id="dataStatus" role="status">Loading your information…</p>
+    </section>
+  </main>
+</body>
+</html>

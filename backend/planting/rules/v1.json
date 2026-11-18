@@ -9,22 +9,22 @@
     "maize": {
       "duration_days": 14,
       "confidence": 0.75,
-      "rationale": "Onset of rains expected in the last week of November."
+      "note": "Plant once the soil is moist after the onset of the rains."
     },
     "green_gram": {
       "duration_days": 10,
       "confidence": 0.7,
-      "rationale": "Short-cycle legume suited to the late short-rains onset."
+      "note": "Short-cycle legume that suits a late onset."
     },
     "cowpea": {
       "duration_days": 12,
       "confidence": 0.72,
-      "rationale": "Drought-tolerant legume with a forgiving planting window."
+      "note": "Drought-tolerant legume with a wider planting window."
     },
     "watermelon": {
       "duration_days": 8,
       "confidence": 0.6,
-      "rationale": "Plant in a staggered window to avoid a market glut."
+      "note": "Stagger planting to avoid a market glut."
     }
   },
   "region_adjustments": {

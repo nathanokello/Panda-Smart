@@ -13,7 +13,7 @@ This machine has Python 3.14; Django 5.2 and DRF run on it. A local virtual
 environment is included at `.venv`.
 
 ```bash
-# from C:\CLAUDE CODER\backend
+# from the backend folder of the repo
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe manage.py migrate
 .venv\Scripts\python.exe manage.py seed_demo
@@ -31,9 +31,16 @@ take precedence. Nothing secret is committed.
 | `ALLOWED_HOSTS` | Comma-separated hostnames |
 | `DATABASE_URL` | `sqlite:///...` locally, `postgresql://...` in deployment |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated frontend origins |
-| `FRONTEND_BASE_URL` | Base URL for farmer verification links (default `http://localhost:5173`, matching the local frontend) |
+| `FRONTEND_BASE_URL` | Base URL for farmer verification links (default `http://127.0.0.1:5500`, the HTML frontend) |
+| `FRONTEND_VERIFY_PATH` | Path before the token in verification links (default `/verify.html?token=`) |
+| `SELF_REGISTER_TENANT` | Cooperative name for self-registered farmers (default: the oldest cooperative) |
 | `VERIFY_TOKEN_TTL_DAYS` | Verification link lifetime (default 14) |
 | `AT_USERNAME`, `AT_API_KEY` | Africa's Talking sandbox settings (simulator only) |
+| `USSD_CALLBACK_SECRET` | Shared secret for the USSD callback URL (`?key=`); required when `DEBUG=0` |
+| `TOKEN_TTL_HOURS` | Sign-in token lifetime in hours (default 168; 0 = never expire) |
+| `LOGIN_PHONE_RATE` | Sign-in attempts allowed per phone number (default `20/hour`) |
+| `RAINFALL_SOURCE_PRIORITY` | Rainfall source order for advice (default `NASA_POWER,CHIRPS`) |
+| `OPEN_METEO_ENABLED` | `1` to show forecasts (Open-Meteo free tier is non-commercial only) |
 
 For PostgreSQL, install a driver too: `pip install "psycopg[binary]>=3"`.
 
@@ -68,9 +75,16 @@ Auth is `Authorization: Token <key>` except `/auth/login/`, `/verify/*` and
 
 ## Frontend integration
 
-The React/Vite frontend lives at `../frontend/panda-smart-frontend/` and uses
-the Vite `/api` proxy (`VITE_BACKEND_URL=http://localhost:8000`), so it calls
-this backend same-origin at `/api/v1/`. No CORS change is needed in dev.
+The working frontend is the plain HTML app in `../frontend/html/` (see its
+README). Serve it with `python -m http.server 5500 --bind 127.0.0.1` and run
+Django on `127.0.0.1:8000`. Port 5500 is in the default `CORS_ALLOWED_ORIGINS`,
+and farmer verification links default to
+`http://127.0.0.1:5500/verify.html?token=<token>` (`FRONTEND_BASE_URL`,
+`FRONTEND_VERIFY_PATH`).
+
+The React/Vite folder `../frontend/panda-smart-frontend/` is an unfinished
+shell. If it is revived, set `FRONTEND_BASE_URL=http://localhost:5173` and
+`FRONTEND_VERIFY_PATH=/verify/`.
 
 Notes for the contract boundary:
 
@@ -111,7 +125,9 @@ token expiry, plus dashboard privacy suppression and the USSD menu flow.
 
 - `manage.py seed_demo` — idempotent demo data (6 wards, 30 farmers, 15 lots,
   102 planting intents, rainfall and price series).
-- `manage.py import_rainfall <csv>` — import `ward_name,date,rainfall_mm[,source]`.
+- `manage.py import_rainfall <csv>` — import `ward_name,date,rainfall_mm[,source][,county]`.
+- `manage.py fetch_rainfall [--days 60] [--ward NAME]` — daily rainfall from NASA POWER
+  (free, no key) for wards with coordinates. Needs internet.
 
 ## Notes
 

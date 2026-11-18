@@ -42,6 +42,8 @@ def api_exception_handler(exc, context):
         code = "rate_limited"
     elif isinstance(exc, ConflictError):
         code = "conflict"
+    elif response.status_code == 503:
+        code = "service_unavailable"
 
     detail = response.data
     fields = _fields(detail)

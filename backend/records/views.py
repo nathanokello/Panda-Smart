@@ -26,6 +26,23 @@ STAFF_ROLES = ("agent", "coop_admin", "admin")
 WRITE_ROLES = ("agent", "admin")
 
 
+class MyVerificationLinksView(APIView):
+    """A farmer's own pending produce-record verification links.
+
+    Reuses the same lookup as the USSD 'verify my grain' menu, so a farmer
+    sees the same links here as they would get by SMS/USSD.
+    """
+
+    permission_classes = [IsAuthenticated, RolePermission]
+    allowed_roles = ("farmer",)
+
+    def get(self, request):
+        profile = getattr(request.user, "farmer_profile", None)
+        if profile is None:
+            return Response({"links": []})
+        return Response({"links": services.get_verification_links_for_farmer(profile.id)})
+
+
 def _uuid_filter(qs, field, value):
     try:
         uuid.UUID(str(value))
@@ -36,7 +53,7 @@ def _uuid_filter(qs, field, value):
 
 class LotListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, RolePermission]
-    allowed_roles = STAFF_ROLES
+    allowed_roles = STAFF_ROLES + ("farmer",)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -73,7 +90,7 @@ class LotListCreateView(generics.ListCreateAPIView):
 
 class LotDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated, RolePermission]
-    allowed_roles = STAFF_ROLES
+    allowed_roles = STAFF_ROLES + ("farmer",)
     serializer_class = LotSerializer
 
     def get_queryset(self):
@@ -82,7 +99,7 @@ class LotDetailView(generics.RetrieveAPIView):
 
 class LotEventsView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, RolePermission]
-    allowed_roles = STAFF_ROLES
+    allowed_roles = STAFF_ROLES + ("farmer",)
 
     def get_lot(self):
         return services.get_lot_for_user(self.kwargs["lot_id"], self.request.user)
@@ -117,7 +134,7 @@ class LotEventsView(generics.ListCreateAPIView):
 
 class VerifyChainView(APIView):
     permission_classes = [IsAuthenticated, RolePermission]
-    allowed_roles = STAFF_ROLES
+    allowed_roles = STAFF_ROLES + ("farmer",)
 
     @extend_schema(responses=VerifyChainResponseSerializer)
     def get(self, request, lot_id):
@@ -126,6 +143,8 @@ class VerifyChainView(APIView):
 
 
 class VerifyDetailView(APIView):
+    # Public: the farmer opens this from a link without signing in.
+    authentication_classes = []
     permission_classes = [AllowAny]
     throttle_scope = "verify"
 
@@ -135,6 +154,8 @@ class VerifyDetailView(APIView):
 
 
 class VerifyConfirmView(APIView):
+    # Public: the farmer opens this from a link without signing in.
+    authentication_classes = []
     permission_classes = [AllowAny]
     throttle_scope = "verify"
 
@@ -145,6 +166,8 @@ class VerifyConfirmView(APIView):
 
 
 class VerifyDisputeView(APIView):
+    # Public: the farmer opens this from a link without signing in.
+    authentication_classes = []
     permission_classes = [AllowAny]
     throttle_scope = "verify"
 

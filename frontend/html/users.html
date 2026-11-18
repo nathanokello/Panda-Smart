@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Users | Panda Smart</title>
+  <link rel="icon" href="assets/panda-smart-logo.jpg"><link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js"></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/ui.js" defer></script>
+  <script src="js/users.js" defer></script>
+</head>
+<body class="dashboard-page">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-area">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton" type="button" aria-label="Toggle navigation">☰</button>
+      <h1 class="page-title" id="pageTitle">Users</h1>
+      <div class="topbar-right">
+        <div class="user-summary">
+          <div class="avatar" id="userAvatar">·</div>
+          <div><strong id="userName">…</strong><small id="userRole"></small></div>
+        </div>
+      </div>
+    </header>
+    <section class="dashboard-content">
+
+      <div class="two-col" style="grid-template-columns:1.7fr 1fr">
+        <section class="panel">
+          <div class="toolbar">
+            <h2 style="margin:0">Staff accounts</h2>
+            <label class="check-row small" style="align-items:center"><input type="checkbox" id="showInactive" style="margin:0"><span>Show deactivated</span></label>
+          </div>
+          <p class="muted small" id="scopeNote"></p>
+          <div class="table-wrap"><table class="data-table">
+            <thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Cooperative</th><th>Last sign-in</th><th>Status</th></tr></thead>
+            <tbody id="userRows"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+          </table></div>
+          <p class="muted small">Farmers are managed on the Farmers page. Accounts are deactivated, never deleted, because grain records point to the agent who made them.</p>
+        </section>
+        <div class="stack">
+          <section class="panel">
+            <h2>Add a staff account</h2>
+            <form id="userForm" class="form-grid">
+              <div class="field full"><label for="uName">Full name</label><input id="uName" required maxlength="150"></div>
+              <div class="field"><label for="uPhone">Phone number</label><input id="uPhone" type="tel" required placeholder="0712 345 678"></div>
+              <div class="field"><label for="uRole">Role</label><select id="uRole" required></select></div>
+              <div class="field full" id="uTenantWrap"><label for="uTenant">Cooperative</label><select id="uTenant"></select></div>
+              <div class="field full"><label for="uPassword">Temporary password</label><input id="uPassword" type="password" minlength="8" required autocomplete="new-password">
+                <p class="hint">At least 8 characters, not only numbers, not a common password. Share it privately; ask them to keep it secret.</p></div>
+              <div class="full"><p class="form-message" id="userMessage" role="alert"></p>
+                <button class="button button-primary" type="submit">Create account</button></div>
+            </form>
+          </section>
+          <section class="panel" id="editPanel" hidden></section>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

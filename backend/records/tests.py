@@ -14,7 +14,7 @@ from records import services
 from records.models import AppendOnlyError, LotEvent
 
 
-class RecordsServiceTests(TestCase):
+class RecordsFixture(TestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(name="Demo Coop")
         self.ward = Ward.objects.create(name="Kitui Central", county="Kitui")
@@ -45,6 +45,8 @@ class RecordsServiceTests(TestCase):
         )
         return lot, token
 
+
+class RecordsServiceTests(RecordsFixture):
     def test_loss_calculation_uses_latest_weight_reading(self):
         lot, _ = self.register_lot()
         services.add_event(self.agent, lot, "WEIGHT_READING", {"weight_kg": 492})
@@ -53,6 +55,28 @@ class RecordsServiceTests(TestCase):
         self.assertEqual(summary["loss_kg"], 8)
         self.assertEqual(summary["loss_pct"], 1.6)
         self.assertEqual(summary["latest_moisture_pct"], 12.5)
+
+    def test_v10_wet_initial_reading_schedules_retest_and_dry_reading_schedules_checks(self):
+        lot, _ = self.register_lot(weight=500)
+        maize = lot.crop
+        maize.code = "maize"
+        maize.save(update_fields=["code"])
+        services.process_moisture_reading(lot, 14.0)
+        lot.refresh_from_db()
+        self.assertEqual(lot.moisture_status, "retest")
+        self.assertTrue(lot.scheduled_checks.filter(kind="retest").exists())
+
+        services.add_event(self.agent, lot, "MOISTURE_READING", {"moisture_pct": 12.5})
+        lot.refresh_from_db()
+        self.assertEqual(lot.moisture_status, "dry")
+        self.assertEqual(lot.scheduled_checks.filter(kind="checkup").count(), 3)
+
+    def test_v10_dry_matter_summary_is_reported_separately(self):
+        lot, _ = self.register_lot(weight=500)
+        services.add_event(self.agent, lot, "MOISTURE_READING", {"moisture_pct": 12.5})
+        summary = services.get_summary(lot)
+        self.assertIn("dry_matter_loss_kg", summary)
+        self.assertIn("dry_matter_loss_pct", summary)
 
     def test_events_are_append_only(self):
         lot, _ = self.register_lot()
@@ -116,3 +140,147 @@ class RecordsServiceTests(TestCase):
         lot.refresh_from_db()
         self.assertEqual(lot.status, "disputed")
         self.assertTrue(lot.events.filter(type="DISPUTED").exists())
+
+
+class CorrectionAndLinkTests(RecordsFixture):
+    """Corrections feed the loss figure; verify links point at verify.html."""
+
+    def test_correction_replaces_weight_in_loss_without_editing_history(self):
+        lot, _ = self.register_lot()
+        wrong = services.add_event(self.agent, lot, "WEIGHT_READING", {"weight_kg": 49.2})
+        services.add_event(
+            self.agent, lot, "CORRECTION",
+            {"corrects_event_id": str(wrong.id), "new_payload": {"weight_kg": 492},
+             "reason": "Typed 49.2 instead of 492"},
+        )
+        summary = services.get_summary(lot)
+        self.assertEqual(summary["latest_weight_kg"], 492)
+        self.assertEqual(summary["loss_kg"], 8)
+        wrong.refresh_from_db()
+        self.assertEqual(wrong.payload["weight_kg"], 49.2)
+        self.assertTrue(services.verify_chain(lot))
+
+    def test_correction_with_bad_weight_is_rejected(self):
+        lot, _ = self.register_lot()
+        reading = services.add_event(self.agent, lot, "WEIGHT_READING", {"weight_kg": 490})
+        with self.assertRaises(ValidationError):
+            services.add_event(
+                self.agent, lot, "CORRECTION",
+                {"corrects_event_id": str(reading.id), "new_payload": {"weight_kg": "abc"},
+                 "reason": "test"},
+            )
+
+    def test_verification_url_uses_html_verify_page(self):
+        from django.test import override_settings
+
+        _lot, token = self.register_lot()
+        # Pin the setting: backend/.env may point it at the React app instead.
+        with override_settings(FRONTEND_VERIFY_PATH="/verify.html?token="):
+            self.assertTrue(
+                services.verification_url(token).endswith(f"/verify.html?token={token.token}")
+            )
+
+    def test_public_verify_ignores_a_stale_token(self):
+        _lot, token = self.register_lot()
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Token not-a-real-token")
+        response = client.get(f"/api/v1/verify/{token.token}/")
+        self.assertEqual(response.status_code, 200, response.content)
+
+
+class FarmerLotViewTests(RecordsFixture):
+    def test_farmer_can_list_only_own_lots(self):
+        lot, _ = self.register_lot()
+        farmer_user = User.objects.create_user(
+            phone="+254799000020", password="demo1234", name="Linked Farmer",
+            role=User.Roles.FARMER, tenant=self.tenant,
+        )
+        self.farmer.user = farmer_user
+        self.farmer.save(update_fields=["user"])
+        token, _ = Token.objects.get_or_create(user=farmer_user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+        response = client.get(reverse("lot-list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(str(response.data["results"][0]["id"]), str(lot.id))
+
+
+class SafeguardRegressionTests(RecordsFixture):
+    """Bugs found in the review of 18 Nov 2026."""
+
+    def agent_client(self):
+        token, _ = Token.objects.get_or_create(user=self.agent)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+        return client
+
+    def test_agent_cannot_forge_farmer_confirmation_through_events_api(self):
+        lot, _ = self.register_lot()
+        client = self.agent_client()
+        for event_type, payload in (
+            ("VERIFIED", {"method": "link"}),
+            ("DISPUTED", {"reason": "x"}),
+            ("REGISTERED", {"weight_kg": 1, "bag_count": 1, "storage_method": "x"}),
+        ):
+            response = client.post(
+                f"/api/v1/lots/{lot.id}/events/", {"type": event_type, "payload": payload}
+            )
+            self.assertEqual(response.status_code, 400, (event_type, response.content))
+        self.assertFalse(lot.events.filter(type__in=["VERIFIED", "DISPUTED"]).exists())
+
+    def test_agent_can_still_add_readings_through_events_api(self):
+        lot, _ = self.register_lot()
+        response = self.agent_client().post(
+            f"/api/v1/lots/{lot.id}/events/",
+            {"type": "WEIGHT_READING", "payload": {"weight_kg": 495}},
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+
+    def test_bad_correction_target_is_a_400_not_a_500(self):
+        lot, _ = self.register_lot()
+        response = self.agent_client().post(
+            f"/api/v1/lots/{lot.id}/events/",
+            {"type": "CORRECTION", "payload": {
+                "corrects_event_id": "not-a-uuid", "new_payload": {"weight_kg": 1}, "reason": "x"}},
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+
+    def test_nan_and_infinity_are_not_valid_readings(self):
+        for bad in ("nan", "inf", float("inf")):
+            with self.assertRaises(ValidationError):
+                services.validate_event_payload("WEIGHT_READING", {"weight_kg": bad})
+
+    def test_non_storable_crop_cannot_be_registered_as_a_lot(self):
+        melon = Crop.objects.create(
+            code="watermelon", name_en="Watermelon", name_sw="Tikiti maji", storable=False
+        )
+        response = self.agent_client().post(
+            reverse("lot-list"),
+            {"farmer_id": str(self.farmer.id), "crop": melon.code, "weight_kg": "100",
+             "bag_count": 1, "storage_method": "other", "location_label": "x"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+
+    def test_user_without_a_cooperative_sees_no_lots(self):
+        self.register_lot()
+        loner = User.objects.create_user(
+            phone="+254700000099", password="demo1234", name="No coop", role=User.Roles.AGENT
+        )
+        self.assertEqual(services.lots_for_user(loner).count(), 0)
+
+    def test_farmer_links_are_found_even_if_login_phone_differs(self):
+        _lot, token = self.register_lot()
+        login = User.objects.create_user(
+            phone="+254700000055", password="demo1234", name="Joseph", role=User.Roles.FARMER,
+            tenant=self.tenant,
+        )
+        self.farmer.user = login
+        self.farmer.save()
+        token_auth, _ = Token.objects.get_or_create(user=login)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Token " + token_auth.key)
+        response = client.get("/api/v1/me/verification-links/")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(len(response.json()["links"]), 1)

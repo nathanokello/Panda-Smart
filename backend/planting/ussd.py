@@ -4,6 +4,7 @@ Uses the same service functions as the REST views and keeps state in UssdSession
 Menus are at most three levels deep (architecture.md Section 6.5).
 """
 from core import services as core_services
+from core.phone import normalize_phone
 from planting.models import PlantingIntent, UssdSession
 from planting import services as planting_services
 from records import services as records_services
@@ -17,13 +18,27 @@ def _select(options, choice):
     return options[index] if 0 <= index < len(options) else None
 
 
+# Africa's Talking shows at most about 182 characters per USSD screen.
+MAX_USSD_CHARS = 182
+
+
+def _fit(response: str) -> str:
+    if len(response) <= MAX_USSD_CHARS:
+        return response
+    return response[: MAX_USSD_CHARS - 1].rstrip() + "…"
+
+
 def handle_ussd(session_id: str, phone: str, text: str) -> str:
+    return _fit(_handle(session_id, normalize_phone(phone), text))
+
+
+def _handle(session_id: str, phone: str, text: str) -> str:
     parts = [part.strip() for part in (text or "").split("*") if part.strip()]
     session, _ = UssdSession.objects.get_or_create(
         session_id=session_id, defaults={"phone": phone, "state": "", "data": {}}
     )
     session.phone = phone
-    session.state = "*".join(parts)
+    session.state = "*".join(parts)[:50]  # field is max_length=50
     session.data = {"menu": parts[0] if parts else "root"}
     session.save(update_fields=["phone", "state", "data"])
 
