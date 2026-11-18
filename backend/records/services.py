@@ -27,6 +27,12 @@ STAFF_EVENT_TYPES = (
     LotEvent.Types.LOSS_RECORDED,
     LotEvent.Types.CORRECTION,
 )
+CORRECTABLE_FIELDS = {
+    LotEvent.Types.REGISTERED: {"weight_kg", "moisture_pct"},
+    LotEvent.Types.WEIGHT_READING: {"weight_kg"},
+    LotEvent.Types.MOISTURE_READING: {"moisture_pct"},
+    LotEvent.Types.CHECKUP: {"good_weight_kg", "moisture_pct"},
+}
 
 
 def _number(payload, key, errors, minimum=None, maximum=None, required=True):
@@ -94,12 +100,18 @@ def validate_event_payload(event_type, payload, lot=None):
         weight = _number(payload, "weight_kg", errors, minimum=0)
         bags = _integer(payload, "bag_count", errors, minimum=0)
         method = _text(payload, "storage_method", errors)
+        moisture = (
+            _number(payload, "moisture_pct", errors, minimum=0, maximum=100, required=False)
+            if payload.get("moisture_pct") is not None
+            else None
+        )
         if weight is not None:
             clean["weight_kg"] = weight
         if bags is not None:
             clean["bag_count"] = bags
         if method is not None:
             clean["storage_method"] = method
+        clean["moisture_pct"] = moisture
     elif event_type == "MOISTURE_READING":
         moisture = _number(payload, "moisture_pct", errors, minimum=0, maximum=100)
         if moisture is not None:
@@ -145,14 +157,21 @@ def validate_event_payload(event_type, payload, lot=None):
             # Corrected figures feed the loss calculation, so check them like
             # the original readings.
             sub_errors = {}
-            if "weight_kg" in new_payload:
-                value = _number(new_payload, "weight_kg", sub_errors, minimum=0)
-                if value is not None:
-                    new_payload = {**new_payload, "weight_kg": value}
-            if "moisture_pct" in new_payload:
-                value = _number(new_payload, "moisture_pct", sub_errors, minimum=0, maximum=100)
-                if value is not None:
-                    new_payload = {**new_payload, "moisture_pct": value}
+            for key, maximum in (
+                ("weight_kg", None),
+                ("good_weight_kg", None),
+                ("moisture_pct", 100),
+            ):
+                if key in new_payload:
+                    value = _number(
+                        new_payload,
+                        key,
+                        sub_errors,
+                        minimum=0,
+                        maximum=maximum,
+                    )
+                    if value is not None:
+                        new_payload = {**new_payload, key: value}
             if sub_errors:
                 errors["new_payload"] = [
                     f"{key}: {messages[0]}" for key, messages in sub_errors.items()
@@ -165,8 +184,20 @@ def validate_event_payload(event_type, payload, lot=None):
             except ValueError:
                 errors["corrects_event_id"] = ["Must be a valid event id."]
             else:
-                if lot and not LotEvent.objects.filter(pk=target, lot=lot).exists():
-                    errors["corrects_event_id"] = ["No such event on this lot."]
+                if lot:
+                    target_event = LotEvent.objects.filter(pk=target, lot=lot).first()
+                    if not target_event:
+                        errors["corrects_event_id"] = ["No such event on this lot."]
+                    else:
+                        allowed_fields = CORRECTABLE_FIELDS.get(target_event.type, set())
+                        if not allowed_fields:
+                            errors["corrects_event_id"] = ["This event type cannot be corrected."]
+                        elif isinstance(new_payload, dict) and not set(new_payload).issubset(allowed_fields):
+                            errors["new_payload"] = [
+                                "Only recorded weight or moisture measurements can be corrected."
+                            ]
+            if isinstance(new_payload, dict) and not new_payload:
+                errors["new_payload"] = ["Provide at least one corrected measurement."]
         if reason is not None:
             clean["reason"] = reason
 
@@ -175,7 +206,7 @@ def validate_event_payload(event_type, payload, lot=None):
     return clean
 
 
-def _moisture_limit(lot: Lot):
+def moisture_limit_for_lot(lot: Lot):
     if lot.crop.code == "maize":
         return float(getattr(settings, "HIFADHI_MAIZE_MAX_MOISTURE_PCT", 13.0))
     return None
@@ -195,46 +226,66 @@ def complete_scheduled_check(lot: Lot, payload):
         check.good_weight_kg = payload.get("good_weight_kg")
         check.pests = payload.get("pest_signs")
         check.save(update_fields=["completed_at", "moisture_pct", "good_weight_kg", "pests"])
+        next_check = lot.scheduled_checks.filter(
+            completed_at__isnull=True
+        ).order_by("due_at").first()
+        lot.next_check_at = next_check.due_at if next_check else None
+        lot.save(update_fields=["next_check_at"])
 
 
 def process_moisture_reading(lot: Lot, moisture_pct):
     """Apply the v10 follow-up rule: dry, re-test, or extension-officer referral."""
-    limit = _moisture_limit(lot)
+    limit = moisture_limit_for_lot(lot)
     if limit is None:
         lot.moisture_status = Lot.MoistureStatuses.UNKNOWN
         lot.next_check_at = None
         lot.save(update_fields=["moisture_status", "next_check_at"])
+        add_event(
+            None,
+            lot,
+            LotEvent.Types.SYSTEM_DECISION,
+            {"moisture_pct": float(moisture_pct), "limit_pct": None, "decision": "limit not confirmed"},
+        )
         return
 
     is_dry = float(moisture_pct) <= limit
     if is_dry:
         lot.moisture_status = Lot.MoistureStatuses.DRY
-        lot.next_check_at = timezone.now() + timedelta(days=14)
-        lot.save(update_fields=["moisture_status", "next_check_at"])
-        lot.scheduled_checks.filter(kind=ScheduledCheck.Types.RETEST, completed_at__isnull=True).update(
-            completed_at=timezone.now()
-        )
+        lot.retest_count = 0
         now = timezone.now()
+        lot.scheduled_checks.filter(
+            kind=ScheduledCheck.Types.RETEST, completed_at__isnull=True
+        ).update(completed_at=now)
         if not lot.scheduled_checks.filter(kind=ScheduledCheck.Types.CHECKUP).exists():
-            for days in getattr(settings, "HIFADHI_CHECK_DAYS", (14, 30, 60)):
+            check_days = getattr(settings, "HIFADHI_CHECK_DAYS", (14, 30, 60))
+            for days in check_days:
                 _schedule(lot, ScheduledCheck.Types.CHECKUP, now + timedelta(days=int(days)))
-        recorded_at = timezone.now()
-        previous = lot.events.order_by("-sequence").first()
-        payload = {"moisture_pct": float(moisture_pct), "limit_pct": limit, "decision": "dry enough"}
-        LotEvent.objects.create(
-            lot=lot,
-            type=LotEvent.Types.SYSTEM_DECISION,
-            payload=payload,
-            recorded_by=None,
-            recorded_at=recorded_at,
-            sequence=(previous.sequence + 1),
-            prev_hash=previous.hash,
-            hash=compute_hash(
-                previous.hash,
-                LotEvent.Types.SYSTEM_DECISION,
-                payload,
-                recorded_at,
-            ),
+        next_check = lot.scheduled_checks.filter(
+            kind=ScheduledCheck.Types.CHECKUP, completed_at__isnull=True
+        ).order_by("due_at").first()
+        lot.next_check_at = next_check.due_at if next_check else None
+        lot.save(update_fields=["moisture_status", "retest_count", "next_check_at"])
+        add_event(
+            None,
+            lot,
+            LotEvent.Types.SYSTEM_DECISION,
+            {"moisture_pct": float(moisture_pct), "limit_pct": limit, "decision": "dry enough"},
+        )
+        return
+
+    if lot.moisture_status == Lot.MoistureStatuses.OFFICER:
+        lot.next_check_at = None
+        lot.save(update_fields=["next_check_at"])
+        add_event(
+            None,
+            lot,
+            LotEvent.Types.SYSTEM_DECISION,
+            {
+                "moisture_pct": float(moisture_pct),
+                "limit_pct": limit,
+                "decision": "extension officer required",
+                "retest_count": lot.retest_count,
+            },
         )
         return
 
@@ -245,12 +296,30 @@ def process_moisture_reading(lot: Lot, moisture_pct):
     if lot.retest_count >= 3:
         lot.moisture_status = Lot.MoistureStatuses.OFFICER
         lot.next_check_at = None
+        lot.scheduled_checks.filter(
+            kind=ScheduledCheck.Types.RETEST, completed_at__isnull=True
+        ).update(completed_at=timezone.now())
+        decision = "extension officer required"
     else:
         lot.moisture_status = Lot.MoistureStatuses.RETEST
         lot.next_check_at = timezone.now() + timedelta(days=2)
-        lot.scheduled_checks.filter(kind=ScheduledCheck.Types.RETEST, completed_at__isnull=True).delete()
+        lot.scheduled_checks.filter(
+            kind=ScheduledCheck.Types.RETEST, completed_at__isnull=True
+        ).update(completed_at=timezone.now())
         _schedule(lot, ScheduledCheck.Types.RETEST, lot.next_check_at)
+        decision = "re-test required"
     lot.save(update_fields=["moisture_status", "retest_count", "next_check_at"])
+    add_event(
+        None,
+        lot,
+        LotEvent.Types.SYSTEM_DECISION,
+        {
+            "moisture_pct": float(moisture_pct),
+            "limit_pct": limit,
+            "decision": decision,
+            "retest_count": lot.retest_count,
+        },
+    )
 
 
 @transaction.atomic
@@ -278,10 +347,14 @@ def add_event(actor, lot, event_type, payload):
     if event_type == LotEvent.Types.DISPUTED and lot.status != Lot.Statuses.DISPUTED:
         lot.status = Lot.Statuses.DISPUTED
         lot.save(update_fields=["status"])
+    if event_type == LotEvent.Types.REGISTERED and clean_payload.get("moisture_pct") is not None:
+        process_moisture_reading(lot, clean_payload["moisture_pct"])
     if event_type == LotEvent.Types.MOISTURE_READING:
         process_moisture_reading(lot, clean_payload["moisture_pct"])
     if event_type == LotEvent.Types.CHECKUP:
         complete_scheduled_check(lot, clean_payload)
+        if clean_payload.get("moisture_pct") is not None:
+            process_moisture_reading(lot, clean_payload["moisture_pct"])
     return event
 
 
@@ -334,15 +407,13 @@ def register_lot(actor: User, data: dict):
             "weight_kg": float(data["weight_kg"]),
             "bag_count": int(data["bag_count"]),
             "storage_method": data["storage_method"],
+            "moisture_pct": (
+                float(data["moisture_pct"])
+                if data.get("moisture_pct") is not None
+                else None
+            ),
         },
     )
-    if data.get("moisture_pct") is not None:
-        add_event(
-            actor,
-            lot,
-            LotEvent.Types.MOISTURE_READING,
-            {"moisture_pct": float(data["moisture_pct"])},
-        )
     token = VerificationToken.objects.create(lot=lot, farmer=farmer)
     return lot, token
 
@@ -367,53 +438,77 @@ def _value(event, key, corrected):
 
 
 def get_summary(lot: Lot) -> dict:
-    """Single definition of loss: latest weight vs initial weight.
-
-    loss_kg = initial_weight_kg - latest_weight_kg
-    Corrections to the REGISTERED, WEIGHT_READING and MOISTURE_READING events
-    are applied. This is a raw weight difference: it does not adjust for
-    moisture, so drying counts as loss (see README, open decisions).
-    """
+    """Return recorded weight change and, when possible, moisture-adjusted dry matter."""
     corrected = _corrected_payloads(lot)
+    events = list(lot.events.exclude(type=LotEvent.Types.CORRECTION).order_by("sequence"))
     initial = float(lot.initial_weight_kg)
-    registered = lot.events.filter(type=LotEvent.Types.REGISTERED).order_by("sequence").first()
+    registered = next((event for event in events if event.type == LotEvent.Types.REGISTERED), None)
     if registered:
-        initial = _value(registered, "weight_kg", corrected) or initial
-    weight_event = lot.events.filter(type=LotEvent.Types.WEIGHT_READING).order_by("-sequence").first()
-    latest = _value(weight_event, "weight_kg", corrected) if weight_event else initial
-    if latest is None:
-        latest = initial
-    moisture_event = (
-        lot.events.filter(type=LotEvent.Types.MOISTURE_READING).order_by("-sequence").first()
+        registered_weight = _value(registered, "weight_kg", corrected)
+        if registered_weight is not None:
+            initial = registered_weight
+    weight_events = [
+        (event, "weight_kg")
+        if event.type == LotEvent.Types.WEIGHT_READING
+        else (event, "good_weight_kg")
+        for event in events
+        if event.type == LotEvent.Types.WEIGHT_READING
+        or (
+            event.type == LotEvent.Types.CHECKUP
+            and event.payload.get("good_weight_kg") is not None
+        )
+    ]
+    latest = (
+        _value(weight_events[-1][0], weight_events[-1][1], corrected)
+        if weight_events else initial
     )
-    moisture = _value(moisture_event, "moisture_pct", corrected) if moisture_event else None
+
+    initial_moisture = (
+        _value(registered, "moisture_pct", corrected)
+        if registered and "moisture_pct" in registered.payload
+        else None
+    )
+    moisture_events = [
+        event
+        for event in events
+        if event.type == LotEvent.Types.MOISTURE_READING
+        or (
+            event.type == LotEvent.Types.CHECKUP
+            and event.payload.get("moisture_pct") is not None
+        )
+    ]
+    latest_moisture_event = moisture_events[-1] if moisture_events else None
+    moisture = (
+        _value(latest_moisture_event, "moisture_pct", corrected)
+        if latest_moisture_event
+        else initial_moisture
+    )
     loss = initial - latest
     loss_pct = (loss / initial * 100) if initial else 0.0
 
-    initial_moisture_event = lot.events.filter(
-        type=LotEvent.Types.MOISTURE_READING
-    ).order_by("sequence").first()
-    initial_moisture = (
-        _value(initial_moisture_event, "moisture_pct", corrected)
-        if initial_moisture_event else None
-    )
-    dry_matter_latest = latest
-    dry_matter_loss = loss
+    initial_dry_matter = None
+    dry_matter_latest = None
+    dry_matter_loss = None
+    dry_matter_loss_pct = None
     if initial_moisture is not None and moisture is not None:
-        initial_fraction = max(0.0, 1.0 - initial_moisture / 100.0)
-        latest_fraction = max(0.01, 1.0 - moisture / 100.0)
-        dry_matter_latest = initial * initial_fraction / latest_fraction
-        dry_matter_loss = max(0.0, initial - dry_matter_latest)
-    dry_matter_loss_pct = (dry_matter_loss / initial * 100) if initial else 0.0
+        initial_dry_matter = initial * (1.0 - initial_moisture / 100.0)
+        dry_matter_latest = latest * (1.0 - moisture / 100.0)
+        dry_matter_loss = max(0.0, initial_dry_matter - dry_matter_latest)
+        dry_matter_loss_pct = (
+            dry_matter_loss / initial_dry_matter * 100
+            if initial_dry_matter
+            else 0.0
+        )
     return {
         "initial_weight_kg": round(initial, 2),
         "latest_weight_kg": round(latest, 2),
         "loss_kg": round(loss, 2),
         "loss_pct": round(loss_pct, 2),
         "latest_moisture_pct": round(moisture, 2) if moisture is not None else None,
-        "dry_matter_latest_weight_kg": round(dry_matter_latest, 2),
-        "dry_matter_loss_kg": round(dry_matter_loss, 2),
-        "dry_matter_loss_pct": round(dry_matter_loss_pct, 2),
+        "initial_dry_matter_kg": round(initial_dry_matter, 2) if initial_dry_matter is not None else None,
+        "dry_matter_latest_weight_kg": round(dry_matter_latest, 2) if dry_matter_latest is not None else None,
+        "dry_matter_loss_kg": round(dry_matter_loss, 2) if dry_matter_loss is not None else None,
+        "dry_matter_loss_pct": round(dry_matter_loss_pct, 2) if dry_matter_loss_pct is not None else None,
     }
 
 

@@ -51,8 +51,8 @@ Run all commands from inside the extracted repo folder. Sign-ins last 7 days.
 | `farm.html` | farmer; staff with `?farmer=<id>` | Farmer record, plots, add plot; staff also see the farmer's lots | `/farmers/{id}/`, `/farmers/{id}/plots/`, `/lots/?farmer=` |
 | `seasons.html` | farmer; staff with `?farmer=<id>` | What worked before (yield per acre, best season, storage loss), season records with harvest added later, soil tests with guidance | `/farmers/{id}/seasons/`, `/seasons/{id}/`, `/farmers/{id}/soil-tests/`, `/farmers/{id}/history/` |
 | `farmers.html` | agent, coop admin, admin | List, search and register farmers | `GET, POST /farmers/` |
-| `lots.html` | staff (register: agent, admin) | Lot list with filters; register a lot | `GET, POST /lots/` |
-| `lot.html?id=` | staff (add records: agent, admin) | Loss with its formula, read-only history, add readings and corrections, integrity check, farmer link | `/lots/{id}/`, `/lots/{id}/events/`, `/lots/{id}/verify-chain/` |
+| `lots.html` | farmer (own lots), staff (register: agent, admin) | Farmer-scoped lot list with filters; staff can register a lot | `GET, POST /lots/` |
+| `lot.html?id=` | farmer (read-only own lot), staff (add records: agent, admin) | Weight and dry-matter loss, moisture guidance and scheduled checks, read-only event history, staff readings/corrections, integrity check and farmer link | `/lots/{id}/`, `/lots/{id}/events/`, `/lots/{id}/verify-chain/` |
 | `verify.html?token=` | farmer, **no sign-in** | Confirm or dispute one lot; English/Kiswahili | `/verify/{token}/`, `/confirm/`, `/dispute/` |
 | `advice.html` | everyone | Rule-based planting advice, planting windows, planting plans | `/advice/`, `/wards/{id}/slots/`, `/planting-intents/` |
 | `wards.html` | coop admin, admin | Ward dashboard with privacy suppression | `/dashboard/wards/`, `/dashboard/wards/{id}/` |
@@ -77,11 +77,12 @@ checks every permission; hiding a button is not security.
 - No sample or invented data. Empty states say what is missing.
 - Lot history is read-only. Mistakes are fixed with a correction entry.
 - The loss figure is always shown with its formula.
+- Raw weight change and estimated dry-matter loss are shown separately; dry-matter loss needs a registration-time moisture reading.
+- Farmers can inspect their own lots and event history, but only authorized staff can add readings or corrections.
 - The verify page sends no sign-in token, so a stale token can't break it.
 
 ## Not built yet
 
-- Farmers can't list their own lots after signing in (they use the private link).
 - SMS sending of the verify link (Africa's Talking), USSD screens, offline entry.
 - Full Kiswahili for the staff pages (the verify page has both languages; crop
   names show in both everywhere). Kiswahili text needs a native speaker's check.

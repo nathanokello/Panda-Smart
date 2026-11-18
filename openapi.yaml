@@ -1229,13 +1229,42 @@ components:
           allOf:
           - $ref: '#/components/schemas/LotSummary'
           readOnly: true
+        moisture_status:
+          type: string
+          enum:
+          - unknown
+          - dry
+          - retest
+          - officer
+        moisture_limit_pct:
+          type: number
+          format: double
+          nullable: true
+          readOnly: true
+        retest_count:
+          type: integer
+          minimum: 0
+        next_check_at:
+          type: string
+          format: date-time
+          nullable: true
+        follow_ups:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduledCheck'
+          readOnly: true
       required:
       - agent
       - crop
       - farmer_id
+      - follow_ups
       - id
       - initial_weight_kg
       - location_label
+      - moisture_limit_pct
+      - moisture_status
+      - next_check_at
+      - retest_count
       - summary
       - verification_url
       - ward_id
@@ -1341,6 +1370,9 @@ components:
     LotSummary:
       type: object
       properties:
+        initial_weight_kg:
+          type: number
+          format: double
         latest_weight_kg:
           type: number
           format: double
@@ -1354,11 +1386,69 @@ components:
           type: number
           format: double
           nullable: true
+        initial_dry_matter_kg:
+          type: number
+          format: double
+          nullable: true
+        dry_matter_latest_weight_kg:
+          type: number
+          format: double
+          nullable: true
+        dry_matter_loss_kg:
+          type: number
+          format: double
+          nullable: true
+        dry_matter_loss_pct:
+          type: number
+          format: double
+          nullable: true
       required:
+      - initial_weight_kg
+      - initial_dry_matter_kg
+      - dry_matter_latest_weight_kg
+      - dry_matter_loss_kg
+      - dry_matter_loss_pct
       - latest_moisture_pct
       - latest_weight_kg
       - loss_kg
       - loss_pct
+    ScheduledCheck:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - retest
+          - checkup
+        due_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        moisture_pct:
+          type: number
+          format: double
+          nullable: true
+        good_weight_kg:
+          type: number
+          format: double
+          nullable: true
+        pests:
+          type: boolean
+          nullable: true
+      required:
+      - completed_at
+      - due_at
+      - good_weight_kg
+      - id
+      - kind
+      - moisture_pct
+      - pests
     PaginatedCropList:
       type: object
       required:
@@ -1704,6 +1794,7 @@ components:
       - VERIFIED
       - DISPUTED
       - CORRECTION
+      - SYSTEM_DECISION
       type: string
       description: |-
         * `REGISTERED` - Registered
@@ -1714,6 +1805,7 @@ components:
         * `VERIFIED` - Verified by farmer
         * `DISPUTED` - Disputed by farmer
         * `CORRECTION` - Correction
+        * `SYSTEM_DECISION` - System moisture decision
     User:
       type: object
       properties:

@@ -127,14 +127,15 @@ Common codes: `validation_error` (400), `unauthenticated` (401), `forbidden` (40
 
 | Type | Payload |
 |---|---|
-| `REGISTERED` | `{weight_kg, bag_count, storage_method}` |
+| `REGISTERED` | `{weight_kg, bag_count, storage_method, moisture_pct?}`; registration moisture is the initial reading |
 | `MOISTURE_READING` | `{moisture_pct}` |
 | `WEIGHT_READING` | `{weight_kg}` |
-| `CHECKUP` | `{pest_signs: bool, notes}` |
+| `CHECKUP` | `{pest_signs: bool, notes, moisture_pct?, good_weight_kg?}` |
 | `LOSS_RECORDED` | `{loss_kg, cause}` |
 | `VERIFIED` | `{method: "link" | "sms"}` |
 | `DISPUTED` | `{reason}` |
-| `CORRECTION` | `{corrects_event_id, new_payload, reason}` |
+| `SYSTEM_DECISION` | `{moisture_pct, limit_pct, decision, retest_count?}`; appended automatically |
+| `CORRECTION` | `{corrects_event_id, new_payload, reason}`; only weight/moisture readings are correctable |
 
 **Append-only rules**
 
@@ -205,8 +206,8 @@ Tokens expire after `TOKEN_TTL_HOURS` (default 168). Login is limited per IP and
 |---|---|---|---|
 | GET | `/lots/` | agent, coop_admin | List lots (filters: `ward`, `crop`, `status`, `farmer`) |
 | POST | `/lots/` | agent | Register a lot (creates the `REGISTERED` event and a verification token) |
-| GET | `/lots/{id}/` | agent, coop_admin | Lot detail with summary |
-| GET | `/lots/{id}/events/` | agent, coop_admin | Event history, oldest first |
+| GET | `/lots/{id}/` | farmer (own), agent, coop_admin | Lot detail with summary and scheduled checks |
+| GET | `/lots/{id}/events/` | farmer (own), agent, coop_admin | Event history, oldest first |
 | POST | `/lots/{id}/events/` | agent | Add an event (moisture, weight, check-up, loss, correction) |
 | GET | `/lots/{id}/verify-chain/` | agent, coop_admin | Hash chain integrity check |
 | GET | `/verify/{token}/` | **public** | Farmer-facing lot summary and history |
@@ -235,7 +236,22 @@ Tokens expire after `TOKEN_TTL_HOURS` (default 168). Login is limited per IP and
   "initial_weight_kg": 500,
   "registered_at": "2026-11-17T09:30:00Z",
   "verification_url": "https://app.example.com/verify/Zk3...tokenA",
-  "summary": { "latest_weight_kg": 500, "loss_kg": 0, "loss_pct": 0, "latest_moisture_pct": 12.5 }
+  "moisture_status": "unknown",
+  "moisture_limit_pct": null,
+  "retest_count": 0,
+  "next_check_at": null,
+  "follow_ups": [],
+  "summary": {
+    "initial_weight_kg": 500,
+    "latest_weight_kg": 500,
+    "loss_kg": 0,
+    "loss_pct": 0,
+    "latest_moisture_pct": 12.5,
+    "initial_dry_matter_kg": 437.5,
+    "dry_matter_latest_weight_kg": 437.5,
+    "dry_matter_loss_kg": 0,
+    "dry_matter_loss_pct": 0
+  }
 }
 ```
 
@@ -273,7 +289,7 @@ Public verify endpoints reveal only that one lot, are rate limited, and the toke
 
 `verification_url` points at the HTML frontend: `{FRONTEND_BASE_URL}{FRONTEND_VERIFY_PATH}{token}`, by default `http://127.0.0.1:5500/verify.html?token=<token>`. Set `FRONTEND_VERIFY_PATH=/verify/` for a frontend with path routing.
 
-`summary` also carries `initial_weight_kg`. A `CORRECTION` whose `new_payload` has `weight_kg` or `moisture_pct` replaces that value of the corrected `REGISTERED`, `WEIGHT_READING` or `MOISTURE_READING` event in the summary; the original event is unchanged.
+`summary` also carries `initial_weight_kg` and separate dry-matter estimates when both registration-time and current moisture are available. Moisture first measured after registration is not treated as the initial moisture. A `CORRECTION` whose `new_payload` has a recorded weight or moisture field replaces that value in the summary; the original event is unchanged. Maize moisture guidance and post-drying check-up days are configurable with `HIFADHI_MAIZE_MAX_MOISTURE_PCT` and `HIFADHI_CHECK_DAYS`; the default maize threshold is provisional and requires agronomist validation.
 
 ### 6.3 Planting (Person B)
 
@@ -404,6 +420,8 @@ npx openapi-typescript http://localhost:8000/api/schema/ -o src/api/schema.d.ts
 ### 7.4 UI rules that protect the trust story
 
 - Show the **loss figure and its formula** on the lot screen, not just a number.
+- Show moisture decisions, scheduled checks and dry-matter loss separately from raw weight change; show dry-matter loss as unavailable without registration-time moisture.
+- Farmers may view their own lot details and history read-only; only authorized staff may add readings or corrections.
 - Event timelines are read-only. Corrections use an "Add correction" form that creates a new event.
 - Show the verify status badge (`Awaiting farmer`, `Verified`, `Disputed`) on every lot.
 - Support Swahili and English labels from the start (`name_sw`, `name_en` come from the API). Use an i18n file, not hard-coded text.
@@ -491,8 +509,6 @@ panda-smart/
 | Final pilot ward and county (seed data and rules depend on it) | Phase 2 |
 | Real demand figures per ward and crop (`DemandEstimate`) | Phase 3 |
 | Confirm Django (versus FastAPI or Node) with the whole team | Day 1 |
-| Whether farmers log in to the web app or only use the verify link and USSD | Phase 1 |
 | Where the demo will be presented (online or offline, affects hosting choice) | Phase 4 |
 | Keep the HTML frontend and retire the React shell, or the reverse | Now |
-| Loss method: raw weight difference (current) or dry-matter basis at a standard moisture | Before pilot |
-| Whether signed-in farmers can list their own lots (needs a farmer-scoped endpoint) | Phase 2 |
+| Confirm the maize moisture threshold and check-up schedule with an agronomist | Before pilot |

@@ -161,6 +161,18 @@ FRONTEND_VERIFY_PATH = os.environ.get("FRONTEND_VERIFY_PATH", "/verify.html?toke
 # Tenant name for farmers who register themselves (default: oldest cooperative).
 SELF_REGISTER_TENANT = os.environ.get("SELF_REGISTER_TENANT", "")
 VERIFY_TOKEN_TTL_DAYS = int(os.environ.get("VERIFY_TOKEN_TTL_DAYS", "14"))
+HIFADHI_MAIZE_MAX_MOISTURE_PCT = float(
+    os.environ.get("HIFADHI_MAIZE_MAX_MOISTURE_PCT", "13.0")
+)
+if not 0 <= HIFADHI_MAIZE_MAX_MOISTURE_PCT <= 100:
+    raise ValueError("HIFADHI_MAIZE_MAX_MOISTURE_PCT must be between 0 and 100.")
+HIFADHI_CHECK_DAYS = tuple(
+    int(day.strip())
+    for day in os.environ.get("HIFADHI_CHECK_DAYS", "14,30,60").split(",")
+    if day.strip()
+)
+if not HIFADHI_CHECK_DAYS or any(day <= 0 for day in HIFADHI_CHECK_DAYS):
+    raise ValueError("HIFADHI_CHECK_DAYS must contain positive day counts.")
 # Sign-in tokens expire after this many hours (0 = never). Default 7 days.
 TOKEN_TTL_HOURS = int(os.environ.get("TOKEN_TTL_HOURS", "168"))
 # Rainfall used by planting advice, first available wins (see planting/services.py).

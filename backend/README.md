@@ -35,6 +35,8 @@ take precedence. Nothing secret is committed.
 | `FRONTEND_VERIFY_PATH` | Path before the token in verification links (default `/verify.html?token=`) |
 | `SELF_REGISTER_TENANT` | Cooperative name for self-registered farmers (default: the oldest cooperative) |
 | `VERIFY_TOKEN_TTL_DAYS` | Verification link lifetime (default 14) |
+| `HIFADHI_MAIZE_MAX_MOISTURE_PCT` | Maize store/dry guidance threshold (default 13.0%; confirm with an agronomist) |
+| `HIFADHI_CHECK_DAYS` | Comma-separated check-up days after grain is dry enough (default `14,30,60`) |
 | `AT_USERNAME`, `AT_API_KEY` | Africa's Talking sandbox settings (simulator only) |
 | `USSD_CALLBACK_SECRET` | Shared secret for the USSD callback URL (`?key=`); required when `DEBUG=0` |
 | `TOKEN_TTL_HOURS` | Sign-in token lifetime in hours (default 168; 0 = never expire) |

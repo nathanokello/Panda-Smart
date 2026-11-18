@@ -65,9 +65,20 @@ class LotSummarySerializer(serializers.Serializer):
     loss_kg = serializers.FloatField()
     loss_pct = serializers.FloatField()
     latest_moisture_pct = serializers.FloatField(allow_null=True)
-    dry_matter_latest_weight_kg = serializers.FloatField()
-    dry_matter_loss_kg = serializers.FloatField()
-    dry_matter_loss_pct = serializers.FloatField()
+    initial_dry_matter_kg = serializers.FloatField(allow_null=True)
+    dry_matter_latest_weight_kg = serializers.FloatField(allow_null=True)
+    dry_matter_loss_kg = serializers.FloatField(allow_null=True)
+    dry_matter_loss_pct = serializers.FloatField(allow_null=True)
+
+
+class ScheduledCheckSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    kind = serializers.CharField()
+    due_at = serializers.DateTimeField()
+    completed_at = serializers.DateTimeField(allow_null=True)
+    moisture_pct = serializers.FloatField(allow_null=True)
+    good_weight_kg = serializers.FloatField(allow_null=True)
+    pests = serializers.BooleanField(allow_null=True)
 
 
 class LotSerializer(serializers.ModelSerializer):
@@ -77,6 +88,7 @@ class LotSerializer(serializers.ModelSerializer):
     agent = serializers.SerializerMethodField()
     verification_url = serializers.SerializerMethodField()
     summary = serializers.SerializerMethodField()
+    moisture_limit_pct = serializers.SerializerMethodField()
     follow_ups = serializers.SerializerMethodField()
 
     class Meta:
@@ -94,6 +106,7 @@ class LotSerializer(serializers.ModelSerializer):
             "verification_url",
             "summary",
             "moisture_status",
+            "moisture_limit_pct",
             "retest_count",
             "next_check_at",
             "follow_ups",
@@ -112,6 +125,11 @@ class LotSerializer(serializers.ModelSerializer):
     def get_summary(self, obj):
         return services.get_summary(obj)
 
+    @extend_schema_field(serializers.FloatField(allow_null=True))
+    def get_moisture_limit_pct(self, obj):
+        return services.moisture_limit_for_lot(obj)
+
+    @extend_schema_field(ScheduledCheckSerializer(many=True))
     def get_follow_ups(self, obj):
         return [
             {

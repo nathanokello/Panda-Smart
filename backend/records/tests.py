@@ -30,6 +30,19 @@ class RecordsFixture(TestCase):
             tenant=self.tenant, consent_given=True,
         )
 
+    def test_correction_can_target_a_checkup_weight(self):
+        lot, _ = self.register_lot()
+        checkup = services.add_event(self.agent, lot, "CHECKUP", {
+        "pest_signs": False,
+        "good_weight_kg": 490,
+        })
+        services.add_event(
+        self.agent, lot, "CORRECTION",
+        {"corrects_event_id": str(checkup.id), "new_payload": {"good_weight_kg": 495},
+         "reason": "Scale reading corrected"},
+        )
+        self.assertEqual(services.get_summary(lot)["latest_weight_kg"], 495)
+
     def register_lot(self, weight=500):
         lot, token = services.register_lot(
             self.agent,
@@ -70,6 +83,51 @@ class RecordsServiceTests(RecordsFixture):
         lot.refresh_from_db()
         self.assertEqual(lot.moisture_status, "dry")
         self.assertEqual(lot.scheduled_checks.filter(kind="checkup").count(), 3)
+        self.assertTrue(lot.events.filter(
+            type="SYSTEM_DECISION", payload__decision="dry enough"
+        ).exists())
+        self.assertTrue(services.verify_chain(lot))
+
+    def test_retests_remain_in_schedule_history_after_referral(self):
+        lot, _ = self.register_lot(weight=500)
+        lot.crop.code = "maize"
+        lot.crop.save(update_fields=["code"])
+        services.process_moisture_reading(lot, 14)
+        for moisture in (14.2, 14.4, 14.6):
+            services.add_event(
+                self.agent, lot, "MOISTURE_READING", {"moisture_pct": moisture}
+            )
+
+        checks = lot.scheduled_checks.filter(kind="retest")
+        self.assertEqual(checks.count(), 3)
+        self.assertFalse(checks.filter(completed_at__isnull=True).exists())
+        lot.refresh_from_db()
+        self.assertEqual(lot.moisture_status, "officer")
+        self.assertTrue(services.verify_chain(lot))
+
+    def test_configured_check_days_drive_due_dates_and_next_check(self):
+        from django.test import override_settings
+
+        maize = Crop.objects.create(code="maize", name_en="Maize", name_sw="Mahindi")
+        with override_settings(HIFADHI_CHECK_DAYS=(7, 21)):
+            lot, _ = services.register_lot(
+                self.agent,
+                {
+                    "farmer": self.farmer,
+                    "crop": maize,
+                    "weight_kg": Decimal("500"),
+                    "bag_count": 5,
+                    "storage_method": "hermetic_bag",
+                    "location_label": "Kitui Central store 2",
+                    "moisture_pct": Decimal("12.5"),
+                },
+            )
+            checks = list(lot.scheduled_checks.order_by("due_at"))
+            self.assertEqual(len(checks), 2)
+            self.assertEqual(lot.next_check_at, checks[0].due_at)
+            services.add_event(self.agent, lot, "CHECKUP", {"pest_signs": False})
+            lot.refresh_from_db()
+            self.assertEqual(lot.next_check_at, checks[1].due_at)
 
     def test_v10_dry_matter_summary_is_reported_separately(self):
         lot, _ = self.register_lot(weight=500)
@@ -77,6 +135,67 @@ class RecordsServiceTests(RecordsFixture):
         summary = services.get_summary(lot)
         self.assertIn("dry_matter_loss_kg", summary)
         self.assertIn("dry_matter_loss_pct", summary)
+
+    def test_dry_matter_loss_uses_registration_and_latest_readings(self):
+        maize = Crop.objects.create(code="maize", name_en="Maize", name_sw="Mahindi")
+        lot, _ = services.register_lot(
+            self.agent,
+            {
+                "farmer": self.farmer,
+                "crop": maize,
+                "weight_kg": Decimal("1000"),
+                "bag_count": 10,
+                "storage_method": "hermetic_bag",
+                "location_label": "Kitui Central store 2",
+                "moisture_pct": Decimal("14"),
+            },
+        )
+        services.add_event(self.agent, lot, "CHECKUP", {
+            "pest_signs": False,
+            "moisture_pct": 10,
+            "good_weight_kg": 900,
+        })
+
+        summary = services.get_summary(lot)
+        self.assertEqual(summary["initial_dry_matter_kg"], 860)
+        self.assertEqual(summary["dry_matter_latest_weight_kg"], 810)
+        self.assertEqual(summary["dry_matter_loss_kg"], 50)
+        self.assertEqual(summary["dry_matter_loss_pct"], 5.81)
+        self.assertTrue(services.verify_chain(lot))
+
+    def test_subsequent_moisture_does_not_replace_missing_initial_moisture(self):
+        lot, _ = services.register_lot(
+            self.agent,
+            {
+                "farmer": self.farmer,
+                "crop": self.crop,
+                "weight_kg": Decimal("500"),
+                "bag_count": 5,
+                "storage_method": "hermetic_bag",
+                "location_label": "Kitui Central store 2",
+                "moisture_pct": None,
+            },
+        )
+        services.add_event(self.agent, lot, "CHECKUP", {
+            "pest_signs": False,
+            "moisture_pct": 12,
+            "good_weight_kg": 490,
+        })
+
+        summary = services.get_summary(lot)
+        self.assertIsNone(summary["initial_dry_matter_kg"])
+        self.assertIsNone(summary["dry_matter_loss_kg"])
+        self.assertEqual(summary["latest_moisture_pct"], 12)
+
+    def test_latest_checkup_weight_is_used_in_event_order(self):
+        lot, _ = self.register_lot(weight=500)
+        services.add_event(self.agent, lot, "WEIGHT_READING", {"weight_kg": 480})
+        services.add_event(self.agent, lot, "CHECKUP", {
+            "pest_signs": False,
+            "good_weight_kg": 470,
+        })
+        services.add_event(self.agent, lot, "WEIGHT_READING", {"weight_kg": 460})
+        self.assertEqual(services.get_summary(lot)["latest_weight_kg"], 460)
 
     def test_events_are_append_only(self):
         lot, _ = self.register_lot()
@@ -89,9 +208,17 @@ class RecordsServiceTests(RecordsFixture):
     def test_hash_chain_detects_tampering(self):
         lot, _ = self.register_lot()
         self.assertTrue(services.verify_chain(lot))
-        event = lot.events.filter(type="MOISTURE_READING").first()
-        LotEvent.objects.filter(pk=event.pk).update(payload={"moisture_pct": 99})
+        event = lot.events.get(type="REGISTERED")
+        LotEvent.objects.filter(pk=event.pk).update(
+            payload={**event.payload, "moisture_pct": 99}
+        )
         self.assertFalse(services.verify_chain(lot))
+
+    def test_registration_records_initial_moisture_on_registered_event(self):
+        lot, _ = self.register_lot()
+        registered = lot.events.get(type="REGISTERED")
+        self.assertEqual(registered.payload["moisture_pct"], 12.5)
+        self.assertFalse(lot.events.filter(type="MOISTURE_READING").exists())
 
     def test_moisture_payload_is_validated(self):
         with self.assertRaises(ValidationError):
@@ -170,6 +297,19 @@ class CorrectionAndLinkTests(RecordsFixture):
                  "reason": "test"},
             )
 
+    def test_correction_rejects_non_measurement_checkup_fields(self):
+        lot, _ = self.register_lot()
+        checkup = services.add_event(self.agent, lot, "CHECKUP", {
+            "pest_signs": False,
+            "good_weight_kg": 490,
+        })
+        with self.assertRaises(ValidationError):
+            services.add_event(
+                self.agent, lot, "CORRECTION",
+                {"corrects_event_id": str(checkup.id), "new_payload": {"pest_signs": True},
+                 "reason": "Not a measurement"},
+            )
+
     def test_verification_url_uses_html_verify_page(self):
         from django.test import override_settings
 
@@ -189,8 +329,14 @@ class CorrectionAndLinkTests(RecordsFixture):
 
 
 class FarmerLotViewTests(RecordsFixture):
-    def test_farmer_can_list_only_own_lots(self):
+    def test_farmer_can_list_and_read_only_own_lot_history(self):
         lot, _ = self.register_lot()
+        other_lot, _ = self.register_lot()
+        other_lot.farmer = Farmer.objects.create(
+            name="Other farmer", phone="+254710000002", ward=self.ward,
+            tenant=self.tenant, consent_given=True,
+        )
+        other_lot.save(update_fields=["farmer"])
         farmer_user = User.objects.create_user(
             phone="+254799000020", password="demo1234", name="Linked Farmer",
             role=User.Roles.FARMER, tenant=self.tenant,
@@ -204,6 +350,46 @@ class FarmerLotViewTests(RecordsFixture):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(str(response.data["results"][0]["id"]), str(lot.id))
+        detail = client.get(reverse("lot-detail", args=[lot.id]))
+        self.assertEqual(detail.status_code, 200)
+        history = client.get(reverse("lot-events", args=[lot.id]))
+        self.assertEqual(history.status_code, 200)
+        self.assertGreater(len(history.data["results"]), 0)
+        self.assertEqual(client.post(
+            f"/api/v1/lots/{lot.id}/events/",
+            {"type": "WEIGHT_READING", "payload": {"weight_kg": 450}},
+        ).status_code, 403)
+        self.assertEqual(
+            client.get(reverse("lot-detail", args=[other_lot.id])).status_code, 404
+        )
+
+    def test_farmer_record_returns_crop_moisture_guidance(self):
+        maize = Crop.objects.create(code="maize", name_en="Maize", name_sw="Mahindi")
+        farmer_user = User.objects.create_user(
+            phone="+254799000021", password="demo1234", name="Maize Farmer",
+            role=User.Roles.FARMER, tenant=self.tenant,
+        )
+        self.farmer.user = farmer_user
+        self.farmer.save(update_fields=["user"])
+        lot, _ = services.register_lot(
+            self.agent,
+            {
+                "farmer": self.farmer,
+                "crop": maize,
+                "weight_kg": Decimal("500"),
+                "bag_count": 5,
+                "storage_method": "hermetic_bag",
+                "location_label": "Kitui Central store 2",
+                "moisture_pct": Decimal("14"),
+            },
+        )
+        token, _ = Token.objects.get_or_create(user=farmer_user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION="Token " + token.key)
+        response = client.get(reverse("lot-detail", args=[lot.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["moisture_limit_pct"], 13.0)
+        self.assertEqual(response.data["moisture_status"], "retest")
 
 
 class SafeguardRegressionTests(RecordsFixture):

@@ -92,6 +92,7 @@ class LotDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated, RolePermission]
     allowed_roles = STAFF_ROLES + ("farmer",)
     serializer_class = LotSerializer
+    lookup_url_kwarg = "lot_id"
 
     def get_queryset(self):
         return services.lots_for_user(self.request.user)

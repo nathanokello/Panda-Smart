@@ -61,7 +61,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (farmer && farmer.ward) showWeather(farmer.ward);
     set("panelB", `<h2><span class="panel-heading-icon">▣</span>Hifadhi Mavuno: your stored grain</h2>
       <p>When a storage agent records your grain, you receive a private link to check the weight and moisture and to confirm or dispute the record.</p>
-      <p class="muted small">Viewing all your lots after signing in is not built yet. Use the link from your agent.</p>`);
+      <p class="muted small">View your stored lots, readings, scheduled checks and tamper-evident history here. Your records are read-only; confirmations use the private link from your agent.</p>
+      <a class="button button-primary" href="lots.html">View my grain records <span>→</span></a>`);
     set("panelC", `<h2><span class="panel-heading-icon">📍</span>Your farm</h2>
       ${farmer ? `<dl class="kv"><dt>Name</dt><dd>${esc(farmer.name)}</dd><dt>Phone</dt><dd>${esc(farmer.phone)}</dd>
         <dt>Ward</dt><dd>${esc(wardText(farmer.ward))}</dd><dt>Plots</dt><dd>${num(plots.length, 0)} (${num(acres)} acres)</dd></dl>`

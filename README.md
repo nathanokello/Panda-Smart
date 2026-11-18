@@ -43,8 +43,8 @@ alongside it.
 | Farmers and plots | Agents register farmers (with consent) and plots (approximate size only, no GPS) | Built |
 | Season history | Farmers or agents record each season's crop, variety, methods and harvest; summary shows average and best yield per acre and storage loss per crop | Built |
 | Soil records | Enter soil test results; general guidance on pH and organic matter, with "confirm with an extension officer" | Built (manual entry) |
-| Hifadhi Mavuno | Agents register grain lots and add moisture, weight, check-up and loss records. History is append-only and hash-chained; mistakes are fixed with correction entries | Built |
-| Loss figure | Plain weight difference, shown with its formula, corrections applied | Built (method still to agree, see open decisions) |
+| Hifadhi Mavuno | Agents register grain lots and add moisture, weight, check-up and loss records. Farmers can inspect their own lots read-only. History is append-only and hash-chained; mistakes are fixed with correction entries | Built |
+| Loss figures | Raw weight difference with its formula; estimated dry-matter loss when both initial and current moisture are recorded | Built (dry-matter estimate is supplementary) |
 | Farmer verification | Private link, no login, English/Kiswahili: confirm or dispute once; expires in 14 days | Built |
 | Planting advice | Rule-based planting window from rainfall records, with a confidence score | Built (rules, not AI) |
 | Rainfall data | `fetch_rainfall` pulls daily rainfall from NASA POWER into the advice rules | Built, untested against the live API from this workspace |
@@ -55,7 +55,7 @@ alongside it.
 | SMS sending of links and reminders | — | Planned |
 | Soil maps (iSDAsoil), crop matching, AI explanations, translation, voice | — | Planned (see `docs/data-sources.md`) |
 | Offline entry for agents | — | Planned |
-| Scheduled 14/30/60-day checks, buyer role | — | Not started (team decision) |
+| Hifadhi follow-ups | Moisture re-test decisions and configurable post-drying storage checks; default maize threshold is provisional | Built (threshold requires agronomist validation) |
 | Payments | — | Out of scope: Panda Smart never holds or moves money |
 
 ## Who sees what
@@ -174,14 +174,12 @@ Never commit `.env`, real farmer data or database files.
 ## Open decisions
 
 1. Keep the HTML web app and remove the React shell?
-2. Loss method: plain weight difference (current) or dry-matter at a standard moisture?
-3. Scheduled 14/30/60-day checks and a buyer role?
-4. Let signed-in farmers list their own lots (needs a farmer-only endpoint)?
-5. Issuing a new verify link after the first is used or expires.
-6. Should coop admins also create other coop admins? (Currently admins only;
+2. Confirm maize moisture threshold and check-up schedule with an agronomist before pilot.
+3. Issuing a new verify link after the first is used or expires.
+4. Should coop admins also create other coop admins? (Currently admins only;
    one line in `core/services.py`, `MANAGEABLE_ROLES`.)
-7. Weather and translation licences for commercial use (see `docs/data-sources.md`).
-8. Privacy notice items marked `[to confirm]` in `frontend/html/privacy.html`.
+5. Weather and translation licences for commercial use (see `docs/data-sources.md`).
+6. Privacy notice items marked `[to confirm]` in `frontend/html/privacy.html`.
 
 ## Known limits
 
