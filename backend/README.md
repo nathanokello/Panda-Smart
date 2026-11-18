@@ -125,8 +125,9 @@ token expiry, plus dashboard privacy suppression and the USSD menu flow.
 
 ## Management commands
 
-- `manage.py seed_demo` — idempotent demo data (6 wards, 30 farmers, 15 lots,
-  102 planting intents, rainfall and price series).
+- `manage.py seed_demo` — repeat-safe demo data (6 wards, farmers, lots,
+  planting intents, 3 clearly marked marketplace listings, rainfall and price
+  series). Seed logins use password `demo1234`.
 - `manage.py import_rainfall <csv>` — import `ward_name,date,rainfall_mm[,source][,county]`.
 - `manage.py fetch_rainfall [--days 60] [--ward NAME]` — daily rainfall from NASA POWER
   (free, no key) for wards with coordinates. Needs internet.

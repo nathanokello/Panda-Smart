@@ -17,6 +17,7 @@ from planting.models import (
     AdviceRuleSet,
     DemandEstimate,
     MarketPrice,
+    ProduceListing,
     RainfallObservation,
     Slot,
 )
@@ -264,13 +265,33 @@ class Command(BaseCommand):
                 elif index in (5, 6, 7, 8):
                     records_services.respond_to_verification(token.token, "confirm")
 
+        demo_listings = (
+            (farmers[0], crops["green_gram"], "180", "115.00", "[DEMO] Clean green gram, ready for collection."),
+            (farmers[6], crops["maize"], "320", "52.00", "[DEMO] Maize from the latest harvest."),
+            (farmers[11], crops["cowpea"], "150", "105.00", "[DEMO] Sorted cowpeas available in sacks."),
+        )
+        for farmer, crop, quantity, price, description in demo_listings:
+            ProduceListing.objects.get_or_create(
+                farmer=farmer,
+                crop=crop,
+                description=description,
+                defaults={
+                    "ward": farmer.ward,
+                    "lot": farmer.lots.filter(crop=crop).first(),
+                    "quantity_kg": Decimal(quantity),
+                    "price_per_kg_kes": Decimal(price),
+                },
+            )
+
         self._load_rainfall(wards)
         self._load_prices(wards, crops)
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"Seed complete: {Ward.objects.count()} wards, {Farmer.objects.count()} farmers, "
-                f"{Lot.objects.count()} lots, {PlantingIntent.objects.count()} intents."
+                f"{Lot.objects.count()} lots, {PlantingIntent.objects.count()} intents, "
+                f"{ProduceListing.objects.filter(status=ProduceListing.Statuses.AVAILABLE).count()} "
+                "available marketplace listings."
             )
         )
         self.stdout.write("Demo logins (password demo1234): agent@demo phone +254700000001, "
